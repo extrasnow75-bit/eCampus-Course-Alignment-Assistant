@@ -1,0 +1,620 @@
+
+import React, { useState, useEffect } from 'react';
+import { generateDesignMap, analyzeCourseDocument } from './services/geminiService';
+import { DesignMap } from './types';
+import { LoadingOverlay } from './components/LoadingOverlay';
+import { MappingResult } from './components/MappingResult';
+import { SettingsModal } from './components/SettingsModal';
+import { Settings, LogIn, LogOut, User } from 'lucide-react';
+
+// External global variable types for Mammoth and PDF.js
+declare const mammoth: any;
+declare const pdfjsLib: any;
+
+const MAX_CHARS = 100000;
+
+const App: React.FC = () => {
+  const [clos, setClos] = useState('');
+  const [plos, setPlos] = useState('');
+  const [ulos, setUlos] = useState('');
+  const [objectiveLocation, setObjectiveLocation] = useState('E.g. #1: This design document contains module objectives under section headers titled Module Introduction. \n\nOR E.g. #2: This design document does not contain module objectives');
+  const [exclusions, setExclusions] = useState('Instructor Resources, Student Resources, and Getting Started modules. Also exclude any unpublished course content.');
+  const [additionalInfo, setAdditionalInfo] = useState('');
+  const [documentContent, setDocumentContent] = useState('');
+  const [contextType, setContextType] = useState('Undergraduate');
+  const [customContext, setCustomContext] = useState('');
+  const [courseInfo, setCourseInfo] = useState('');
+  const [courseLength, setCourseLength] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<DesignMap | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isParsing, setIsParsing] = useState(false);
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [isAccordionOpen, setIsAccordionOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isUseCasesOpen, setIsUseCasesOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+  const [user, setUser] = useState<{ access_token: string; expires_at?: number } | null>(null);
+
+  // Restore Google session from localStorage on mount (check expiry)
+  useEffect(() => {
+    const savedTokens = localStorage.getItem('google_tokens');
+    if (savedTokens) {
+      try {
+        const parsed = JSON.parse(savedTokens);
+        if (!parsed.expires_at || Date.now() < parsed.expires_at) {
+          setUser(parsed);
+        } else {
+          localStorage.removeItem('google_tokens');
+        }
+      } catch {
+        localStorage.removeItem('google_tokens');
+      }
+    }
+  }, []);
+
+  const handleLogin = () => {
+    const googleLib = (window as any).google;
+    if (!googleLib?.accounts?.oauth2) {
+      setError('Google API not loaded. Please refresh the page and try again.');
+      return;
+    }
+    const clientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      setError('Google Client ID is not configured. Please contact the app administrator.');
+      return;
+    }
+    const tokenClient = googleLib.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/drive.readonly profile email',
+      callback: (response: any) => {
+        if (response.error) {
+          if (response.error !== 'access_denied') {
+            setError(`Google sign-in failed: ${response.error}`);
+          }
+          return;
+        }
+        const expiresIn = Number(response.expires_in) || 3600;
+        const tokenData = {
+          access_token: response.access_token,
+          expires_at: Date.now() + expiresIn * 1000,
+        };
+        setUser(tokenData);
+        localStorage.setItem('google_tokens', JSON.stringify(tokenData));
+      },
+    });
+    tokenClient.requestAccessToken({ prompt: 'select_account' });
+  };
+
+  const handleLogout = () => {
+    const googleLib = (window as any).google;
+    if (googleLib?.accounts?.oauth2 && user?.access_token) {
+      googleLib.accounts.oauth2.revoke(user.access_token, () => {});
+    }
+    setUser(null);
+    localStorage.removeItem('google_tokens');
+  };
+
+  const handleDrivePicker = () => {
+    if (!user?.access_token) {
+      handleLogin();
+      return;
+    }
+
+    const pickerApiKey = (import.meta as any).env.VITE_GOOGLE_PICKER_API_KEY;
+    if (!pickerApiKey) {
+      setError('Google Picker API key is not configured. Please contact the app administrator.');
+      return;
+    }
+
+    const gapiLib = (window as any).gapi;
+    const googleLib = (window as any).google;
+    if (!gapiLib) {
+      setError('Google API not loaded. Please refresh the page.');
+      return;
+    }
+
+    gapiLib.load('picker', {
+      callback: () => {
+        if (!googleLib?.picker) {
+          setError('Google Picker failed to load. Please refresh and try again.');
+          return;
+        }
+
+        const SUPPORTED_MIME_TYPES = [
+          'application/vnd.google-apps.document',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/pdf',
+          'text/plain',
+        ].join(',');
+
+        const myDriveView = new googleLib.picker.DocsView()
+          .setIncludeFolders(false)
+          .setMimeTypes(SUPPORTED_MIME_TYPES);
+
+        const sharedView = new googleLib.picker.DocsView()
+          .setOwnedByMe(false)
+          .setIncludeFolders(false)
+          .setMimeTypes(SUPPORTED_MIME_TYPES);
+
+        const picker = new googleLib.picker.PickerBuilder()
+          .addView(new googleLib.picker.View(googleLib.picker.ViewId.RECENTLY_PICKED))
+          .addView(myDriveView)
+          .addView(sharedView)
+          .setOAuthToken(user.access_token)
+          .setDeveloperKey(pickerApiKey)
+          .setOrigin(window.location.protocol + '//' + window.location.host)
+          .setCallback(async (data: any) => {
+            if (data.action !== googleLib.picker.Action.PICKED) return;
+            const doc = data.docs[0];
+            setIsParsing(true);
+            setError(null);
+            try {
+              let text = '';
+              if (doc.mimeType === 'application/vnd.google-apps.document') {
+                // Google Doc: use export API (alt=media returns raw bytes for native Docs)
+                const res = await fetch(
+                  `https://www.googleapis.com/drive/v3/files/${doc.id}/export?mimeType=text/plain`,
+                  { headers: { Authorization: `Bearer ${user.access_token}` } }
+                );
+                if (!res.ok) throw new Error(`Failed to download Google Doc (HTTP ${res.status})`);
+                text = await res.text();
+              } else if (doc.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                // Word .docx: download as binary, extract with mammoth
+                const res = await fetch(
+                  `https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`,
+                  { headers: { Authorization: `Bearer ${user.access_token}` } }
+                );
+                if (!res.ok) throw new Error(`Failed to download file (HTTP ${res.status})`);
+                const arrayBuffer = await res.arrayBuffer();
+                const extracted = await mammoth.extractRawText({ arrayBuffer });
+                text = extracted.value;
+              } else if (doc.mimeType === 'application/pdf') {
+                // PDF: download as binary, extract with PDF.js
+                const res = await fetch(
+                  `https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`,
+                  { headers: { Authorization: `Bearer ${user.access_token}` } }
+                );
+                if (!res.ok) throw new Error(`Failed to download PDF (HTTP ${res.status})`);
+                const arrayBuffer = await res.arrayBuffer();
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                  const page = await pdf.getPage(i);
+                  const textContent = await page.getTextContent();
+                  fullText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
+                }
+                text = fullText;
+              } else {
+                // Plain text or other
+                const res = await fetch(
+                  `https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media`,
+                  { headers: { Authorization: `Bearer ${user.access_token}` } }
+                );
+                if (!res.ok) throw new Error(`Failed to download file (HTTP ${res.status})`);
+                text = await res.text();
+              }
+              setDocumentContent(text.slice(0, MAX_CHARS));
+            } catch (err: any) {
+              setError(err.message || 'Failed to download file from Google Drive.');
+            } finally {
+              setIsParsing(false);
+            }
+          })
+          .build();
+
+        picker.setVisible(true);
+      },
+      onerror: () => {
+        setError('Failed to load Google Picker. Please refresh and try again.');
+      },
+    });
+  };
+
+  // Auto-fill logic when document content changes significantly
+  useEffect(() => {
+    const triggerAutoFill = async () => {
+      if (documentContent.length > 500 && !isAutoFilling && !result) {
+        setIsAutoFilling(true);
+        try {
+          const analysis = await analyzeCourseDocument(documentContent, apiKey);
+          if (analysis.courseContext) setContextType(analysis.courseContext);
+          if (analysis.courseInfo) setCourseInfo(analysis.courseInfo);
+          if (analysis.courseLength) setCourseLength(analysis.courseLength);
+          if (analysis.clos) setClos(analysis.clos);
+          if (analysis.plos) setPlos(analysis.plos);
+          if (analysis.ulos) setUlos(analysis.ulos);
+          if (analysis.objectiveLocation) setObjectiveLocation(analysis.objectiveLocation);
+        } catch (err) {
+          console.warn('Auto-fill analysis failed silently', err);
+        } finally {
+          setIsAutoFilling(false);
+        }
+      }
+    };
+
+    const timer = setTimeout(() => {
+      if (documentContent.length > 500) {
+        triggerAutoFill();
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [documentContent]);
+
+  const handleGenerate = async () => {
+    if (!clos.trim() || !documentContent.trim()) {
+      setError('Please provide both Course Learning Objectives and the Design Document content.');
+      return;
+    }
+
+    const finalContext = contextType === 'Other' ? customContext : contextType;
+    if (contextType === 'Other' && !customContext.trim()) {
+      setError('Please specify the custom course context.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await generateDesignMap(
+        clos, 
+        documentContent, 
+        finalContext,
+        courseLength,
+        plos,
+        ulos,
+        exclusions,
+        objectiveLocation,
+        courseInfo,
+        additionalInfo,
+        apiKey
+      );
+      setResult(data);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to generate design map. Please check your API key and input.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsParsing(true);
+    setError(null);
+
+    try {
+      if (file.type === 'application/pdf') {
+        const arrayBuffer = await file.arrayBuffer();
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item: any) => item.str).join(' ');
+          fullText += pageText + '\n';
+        }
+        setDocumentContent(fullText.slice(0, MAX_CHARS));
+      } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        setDocumentContent(result.value.slice(0, MAX_CHARS));
+      } else {
+        const text = await file.text();
+        setDocumentContent(text.slice(0, MAX_CHARS));
+      }
+    } catch (err) {
+      console.error('File parsing error:', err);
+      setError('Failed to extract text from the file. Please try pasting the content directly.');
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  if (result) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-12">
+        <MappingResult data={result} onReset={() => setResult(null)} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen pb-20">
+      {isLoading && <LoadingOverlay />}
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        apiKey={apiKey} 
+        setApiKey={setApiKey} 
+      />
+      
+      <header className="bg-[#0033A0] text-white pt-12 pb-14 px-4 relative shadow-md overflow-hidden">
+        <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
+          <button 
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-2 text-sm font-semibold"
+            title="Settings"
+          >
+            <Settings className="w-5 h-5" />
+            <span className="hidden md:inline">Settings</span>
+          </button>
+          
+          {user ? (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full">
+                <User className="w-4 h-4" />
+                <span className="text-xs font-bold">Logged In</span>
+              </div>
+              <button 
+                onClick={handleLogout}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-2 text-sm font-semibold"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="hidden md:inline">Logout</span>
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={handleLogin}
+              className="bg-white text-[#0033A0] px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 hover:bg-slate-100 transition-all shadow-lg"
+            >
+              <LogIn className="w-4 h-4" />
+              Login with Google
+            </button>
+          )}
+        </div>
+        <div className="max-w-7xl mx-auto relative flex flex-col items-center">
+          <div className="text-center w-full max-w-4xl">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight">
+              The eCampus Course Alignment Assistant
+            </h1>
+          </div>
+          <div className="md:absolute md:right-0 md:bottom-0 mt-8 md:mt-0 text-xs md:text-sm font-black tracking-[0.2em] uppercase shrink-0 pb-1 opacity-90 text-center md:text-right">
+            BOISE STATE ID TOOLKIT
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 mt-10">
+        
+        {/* Instruction Box */}
+        <div className="mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center animate-in fade-in slide-in-from-top-4 duration-500">
+          <p className="text-xl font-medium text-slate-700">
+            Fill out the form below to generate an objective alignment report for a specific course. The report will be based on Boise State University's QM+ Standards.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+          {/* Help Center & Training Documents Accordion */}
+          <section>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden transition-all duration-300">
+              <button 
+                onClick={() => setIsHelpOpen(!isHelpOpen)}
+                className="w-full flex items-center justify-between p-6 bg-white hover:bg-slate-50 transition-colors text-left outline-none"
+              >
+                <span className="font-bold text-[#0033A0] text-lg flex items-center gap-3">
+                  <svg className="w-6 h-6 shrink-0 text-[#0033A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  Help Center & Training Documents
+                </span>
+                <svg 
+                  className={`w-6 h-6 text-[#0033A0] transition-transform duration-300 ${isHelpOpen ? 'rotate-180' : ''}`} 
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </button>
+              {isHelpOpen && (
+                <div className="p-5 bg-white border-t border-slate-100 animate-in slide-in-from-top-4 duration-300">
+                  <div className="flex flex-col gap-3">
+                    <a 
+                      href="https://docs.google.com/document/d/1g4WLYmFsdiXvBi0LPZPCMgv6SwnhTBxzh7dLmMt0O40/edit?tab=t.0" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-3 p-4 rounded-xl hover:bg-blue-50 text-blue-700 text-lg font-semibold transition-colors group"
+                    >
+                      <svg className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                      How to use this app
+                    </a>
+                    <a 
+                      href="https://drive.google.com/drive/folders/1FReC8oz-JKMDiI1HNwqKcFMfDektxsAw" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-3 p-4 rounded-xl hover:bg-blue-50 text-blue-700 text-lg font-semibold transition-colors group"
+                    >
+                      <svg className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                      Training Documents
+                    </a>
+                    <a 
+                      href="https://boisestateecampus.atlassian.net/wiki/spaces/EKB/pages/3503652868/The+eCampus+Content+Export+Tool+Canvas+to+Google+Doc" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-3 p-4 rounded-xl hover:bg-blue-50 text-blue-700 text-lg font-semibold transition-colors group"
+                    >
+                      <svg className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                      Companion App: The eCampus Content Export Tool
+                    </a>
+                    <div className="mt-2 border border-blue-100 rounded-xl overflow-hidden bg-slate-50">
+                      <button onClick={() => setIsUseCasesOpen(!isUseCasesOpen)} className="w-full flex items-center justify-between p-4 hover:bg-blue-50 transition-colors text-left outline-none group">
+                        <span className="font-bold text-blue-700 text-lg flex items-center gap-3">
+                          <svg className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                          Possible Use Cases
+                        </span>
+                        <svg className={`w-5 h-5 text-blue-400 transition-transform duration-300 ${isUseCasesOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                      </button>
+                      {isUseCasesOpen && (
+                        <div className="p-5 bg-white border-t border-blue-100 animate-in slide-in-from-top-2 duration-300">
+                          <ul className="list-disc ml-8 space-y-3 text-slate-600 text-base leading-relaxed">
+                            <li>A course redesign project in which course content has significantly changed over time but the alignment table/course map has not been updated;</li>
+                            <li>A faculty-owned course which the instructor has taught before but is now bringing to eCampus;</li>
+                            <li>A QM Review assignment with a course that lacks a course design map;</li>
+                            <li>A CDD project in which the FD has suggested some activities but not aligned them with objectives.</li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section>
+            <div className="bg-white rounded-2xl border border-blue-200 shadow-md overflow-hidden transition-all duration-300">
+              <button 
+                onClick={() => setIsAccordionOpen(!isAccordionOpen)}
+                className="w-full flex items-center justify-between p-6 bg-white hover:bg-slate-50 transition-colors text-left outline-none group"
+              >
+                <span className="font-bold text-[#0033A0] text-lg flex items-center gap-3">
+                  <svg className="w-6 h-6 shrink-0 text-[#0033A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  Disclaimer: Alignment Needs To Be Verified
+                </span>
+                <svg className={`w-6 h-6 text-[#0033A0] transition-transform duration-300 ${isAccordionOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </button>
+              {isAccordionOpen && (
+                <div className="p-8 text-[#0033A0] text-lg leading-relaxed bg-white border-t border-blue-100 animate-in slide-in-from-top-4 duration-300">
+                  <p className="mb-4">Treat the AI-generated report as a draft, not a final product. Course design maps and other types of alignment documents are usually the result of collaboration between an instructional design consultant and a faculty developer. This process is not meant to replace that; instead it should serve as a first draft or a next-best option.</p>
+                  <p className="mb-4">After getting the draft design map, carefully check it yourself against the course content, use your best judgement to make edits, and then verify the alignment with the Faculty Developer (FD), Instructor of Record (IoR), or whomever has the qualifications or authority to approve the accuracy of the draft map.</p>
+                  <p className="font-extrabold">Again, treat the AI-generated report as a draft, not a final product.</p>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-xl p-10 border border-slate-200">
+          <div className="space-y-12">
+            {/* Essentials Section */}
+            <section className="space-y-8">
+              <h3 className="text-3xl font-extrabold text-[#0033A0] border-b-2 border-blue-100 pb-4">Essentials</h3>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                <div className="lg:col-span-4 space-y-6">
+                  {isAutoFilling && (
+                    <div className="flex items-center gap-3 text-sm font-bold text-blue-600 animate-pulse bg-blue-50 p-4 rounded-xl border border-blue-100">
+                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      Auto-filling form fields...
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">1. Course Context</label>
+                    <select value={contextType} onChange={(e) => setContextType(e.target.value)} className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white mb-3 text-lg">
+                      <option value="Undergraduate">Undergraduate</option>
+                      <option value="Master's">Master's</option>
+                      <option value="Doctoral">Doctoral</option>
+                      <option value="Professional Development">Professional Development</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    {contextType === 'Other' && (
+                      <input type="text" value={customContext} onChange={(e) => setCustomContext(e.target.value)} placeholder="Please specify context..." className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white animate-in slide-in-from-top-2 text-lg" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="lg:col-span-8 space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider">2. Design Document Content <span className="text-red-500">*</span></label>
+                    <div className="flex items-center gap-3">
+                      {isParsing && <div className="flex items-center gap-2 text-xs font-medium text-blue-600 animate-pulse"><div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>Parsing...</div>}
+                      <input type="file" id="file-upload" className="hidden" accept=".txt,.md,.docx,.pdf" onChange={handleFileUpload} />
+                      <label htmlFor="file-upload" className="text-xs font-bold text-blue-600 cursor-pointer hover:bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 transition-all flex items-center gap-2 shadow-sm">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Upload
+                      </label>
+                      <button 
+                        onClick={handleDrivePicker}
+                        className="text-xs font-bold text-emerald-600 cursor-pointer hover:bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-100 transition-all flex items-center gap-2 shadow-sm"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M7.71 3.5L1.15 15l3.43 6 6.55-11.5h-3.42zM9.73 15l3.42 6h13.1l-3.42-6H9.73zM16.29 3.5L9.74 15h6.84l6.55-11.5h-6.84z"/></svg>
+                        Drive
+                      </button>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <textarea 
+                      value={documentContent} 
+                      onChange={(e) => setDocumentContent(e.target.value)} 
+                      maxLength={MAX_CHARS}
+                      placeholder="Paste content or upload file... AI will automatically detect course details." 
+                      className="w-full h-80 px-6 py-5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-slate-50 resize-none font-mono text-base leading-relaxed" 
+                    />
+                    <div className="absolute bottom-4 right-6 text-xs font-bold text-slate-400 bg-slate-50/80 px-2 py-1 rounded">
+                      {documentContent.length.toLocaleString()} / {MAX_CHARS.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Course Details Section */}
+            <section className="space-y-8">
+              <div className="space-y-2">
+                <h3 className="text-3xl font-extrabold text-[#0033A0] border-b-2 border-blue-100 pb-4">Course Details</h3>
+                <p className="text-lg text-slate-600">
+                  This app will fill in the following information based on an analysis of your design document. Read the details in each section carefully and make any necessary edits before generating the Alignment Report.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">3. Course Dept, ###, & Title</label>
+                    <input type="text" value={courseInfo} onChange={(e) => setCourseInfo(e.target.value)} placeholder="e.g. MATH 108: Intermediate Algebra" className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white text-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">4. Course Length</label>
+                    <input type="text" value={courseLength} onChange={(e) => setCourseLength(e.target.value)} placeholder="e.g. 7 weeks, 15 weeks" className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white text-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-500 mb-3 tracking-wider">5. COURSE LEARNING OBJECTIVES (CLOs) <span className="text-red-500">*</span></label>
+                    <textarea value={clos} onChange={(e) => setClos(e.target.value)} placeholder="Paste your course-level learning objectives here..." className="w-full h-48 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white resize-none font-mono text-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-500 mb-3 tracking-wider">6. PROGRAM LEARNING OBJECTIVES (PLOs) [OPTIONAL]</label>
+                    <textarea value={plos} onChange={(e) => setPlos(e.target.value)} placeholder="Paste PLOs..." className="w-full h-48 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white resize-none text-lg" />
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-500 mb-3 tracking-wider">7. UNIVERSITY LEARNING OBJECTIVES (ULOs) [OPTIONAL]</label>
+                    <textarea value={ulos} onChange={(e) => setUlos(e.target.value)} placeholder="Paste ULOs..." className="w-full h-48 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white resize-none text-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">8. Where are module objectives located?</label>
+                    <textarea value={objectiveLocation} onChange={(e) => setObjectiveLocation(e.target.value)} placeholder="e.g. Describe location..." className="w-full h-28 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white text-lg italic text-slate-600" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">9. Exclude content from the following:</label>
+                    <textarea value={exclusions} onChange={(e) => setExclusions(e.target.value)} placeholder="e.g. Instructor Resources..." className="w-full h-28 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white text-lg italic text-slate-600" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">10. Add other relevant info: [Optional]</label>
+                    <textarea value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} placeholder="e.g. Specific focus..." className="w-full h-28 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white text-lg italic text-slate-600" />
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+          {error && <div className="mt-10 p-6 bg-red-50 border border-red-100 text-red-700 rounded-xl text-lg flex items-center gap-4"><svg className="w-6 h-6 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path></svg>{error}</div>}
+          <div className="mt-14 flex flex-col items-center">
+            <button onClick={handleGenerate} disabled={isLoading || isParsing} className="group relative w-full md:w-auto px-24 py-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-xl transition-all transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50">
+              <div className="flex items-center justify-center gap-4"><span className="text-2xl">Generate Alignment Report</span><svg className="w-8 h-8 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg></div>
+            </button>
+            <p className="mt-6 text-slate-400 text-sm text-center italic max-w-lg">AI maps content using Bloom's Taxonomy and Backward Design principles based on QM+ standards.</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default App;

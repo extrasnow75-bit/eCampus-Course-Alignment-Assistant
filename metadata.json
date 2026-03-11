@@ -1,0 +1,5 @@
+{
+  "name": "The eCampus Course Alignment Assistant V. 2",
+  "description": "An instructional design assistant that creates a draft course design map by aligning module objectives and course items to high-level course learning objectives.",
+  "requestFramePermissions": []
+}
