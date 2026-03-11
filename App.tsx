@@ -525,6 +525,16 @@ const App: React.FC = () => {
                       <svg className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                       Companion App: The eCampus Content Export Tool
                     </a>
+                    <div className="mt-2 p-4 rounded-xl border border-blue-100 bg-slate-50">
+                      <p className="font-bold text-blue-700 text-base flex items-center gap-2 mb-2">
+                        <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        AI Models Used
+                      </p>
+                      <ul className="space-y-1 text-slate-600 text-sm ml-7">
+                        <li><span className="font-semibold text-slate-700">Document scan:</span> gemini-3-flash-preview</li>
+                        <li><span className="font-semibold text-slate-700">Full alignment analysis:</span> gemini-3.1-pro-preview</li>
+                      </ul>
+                    </div>
                     <div className="mt-2 border border-blue-100 rounded-xl overflow-hidden bg-slate-50">
                       <button onClick={() => setIsUseCasesOpen(!isUseCasesOpen)} className="w-full flex items-center justify-between p-4 hover:bg-blue-50 transition-colors text-left outline-none group">
                         <span className="font-bold text-blue-700 text-lg flex items-center gap-3">
