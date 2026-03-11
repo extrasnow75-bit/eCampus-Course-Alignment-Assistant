@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { generateDesignMap, analyzeCourseDocument } from './services/geminiService';
+import { initiateGoogleSignIn, signOutFromGoogle, getStoredAccessToken, onAuthStateChanged } from './services/firebaseService';
 import { DesignMap } from './types';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { MappingResult } from './components/MappingResult';
@@ -38,63 +39,36 @@ const App: React.FC = () => {
   const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
   const [user, setUser] = useState<{ access_token: string; expires_at?: number } | null>(null);
 
-  // Restore Google session from localStorage on mount (check expiry)
+  // Restore Google session on mount via Firebase auth state
   useEffect(() => {
-    const savedTokens = localStorage.getItem('google_tokens');
-    if (savedTokens) {
-      try {
-        const parsed = JSON.parse(savedTokens);
-        if (!parsed.expires_at || Date.now() < parsed.expires_at) {
-          setUser(parsed);
-        } else {
-          localStorage.removeItem('google_tokens');
-        }
-      } catch {
-        localStorage.removeItem('google_tokens');
-      }
+    const stored = getStoredAccessToken();
+    if (stored) {
+      setUser({ access_token: stored.accessToken, expires_at: stored.expiresAt });
     }
+    const unsubscribe = onAuthStateChanged((firebaseUser) => {
+      if (!firebaseUser) {
+        setUser(null);
+      }
+    });
+    return unsubscribe;
   }, []);
 
-  const handleLogin = () => {
-    const googleLib = (window as any).google;
-    if (!googleLib?.accounts?.oauth2) {
-      setError('Google API not loaded. Please refresh the page and try again.');
-      return;
+  const handleLogin = async () => {
+    try {
+      const result = await initiateGoogleSignIn();
+      setUser({ access_token: result.accessToken, expires_at: result.expiresAt });
+    } catch (err: any) {
+      // Ignore popup-closed / cancelled errors
+      const code = err?.code || '';
+      if (!code.includes('cancelled') && !code.includes('popup-closed')) {
+        setError(`Google sign-in failed: ${err.message || 'Unknown error'}`);
+      }
     }
-    const clientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      setError('Google Client ID is not configured. Please contact the app administrator.');
-      return;
-    }
-    const tokenClient = googleLib.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/drive.readonly profile email',
-      callback: (response: any) => {
-        if (response.error) {
-          if (response.error !== 'access_denied') {
-            setError(`Google sign-in failed: ${response.error}`);
-          }
-          return;
-        }
-        const expiresIn = Number(response.expires_in) || 3600;
-        const tokenData = {
-          access_token: response.access_token,
-          expires_at: Date.now() + expiresIn * 1000,
-        };
-        setUser(tokenData);
-        localStorage.setItem('google_tokens', JSON.stringify(tokenData));
-      },
-    });
-    tokenClient.requestAccessToken({ prompt: 'select_account' });
   };
 
-  const handleLogout = () => {
-    const googleLib = (window as any).google;
-    if (googleLib?.accounts?.oauth2 && user?.access_token) {
-      googleLib.accounts.oauth2.revoke(user.access_token, () => {});
-    }
+  const handleLogout = async () => {
+    await signOutFromGoogle();
     setUser(null);
-    localStorage.removeItem('google_tokens');
   };
 
   const handleDrivePicker = () => {
