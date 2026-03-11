@@ -39,16 +39,24 @@ const App: React.FC = () => {
   const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
   const [user, setUser] = useState<{ access_token: string; expires_at?: number } | null>(null);
 
-  // Restore Google session on mount via Firebase auth state
+  // Restore Google session on mount via Firebase auth state.
+  // We use an `initialized` flag to avoid the race where Firebase fires
+  // onAuthStateChanged with null *before* it has re-hydrated the session from
+  // IndexedDB, which would wipe a perfectly valid stored access token.
   useEffect(() => {
-    const stored = getStoredAccessToken();
-    if (stored) {
-      setUser({ access_token: stored.accessToken, expires_at: stored.expiresAt });
-    }
+    let initialized = false;
     const unsubscribe = onAuthStateChanged((firebaseUser) => {
-      if (!firebaseUser) {
+      if (firebaseUser) {
+        // Firebase confirmed the user is still signed in — restore access token.
+        const stored = getStoredAccessToken();
+        if (stored) {
+          setUser({ access_token: stored.accessToken, expires_at: stored.expiresAt });
+        }
+      } else if (initialized) {
+        // Firebase confirmed a real sign-out (not just the initial loading state).
         setUser(null);
       }
+      initialized = true;
     });
     return unsubscribe;
   }, []);
@@ -217,7 +225,8 @@ const App: React.FC = () => {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [documentContent]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentContent, apiKey, result]);
 
   const handleGenerate = async () => {
     if (!clos.trim() || !documentContent.trim()) {
