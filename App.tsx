@@ -510,16 +510,6 @@ const App: React.FC = () => {
                       <svg className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                       Companion App: The eCampus Content Export Tool
                     </a>
-                    <div className="mt-2 p-4 rounded-xl border border-blue-100 bg-slate-50">
-                      <p className="font-bold text-blue-700 text-base flex items-center gap-2 mb-2">
-                        <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                        AI Models Used
-                      </p>
-                      <ul className="space-y-1 text-slate-600 text-sm ml-7">
-                        <li><span className="font-semibold text-slate-700">Document scan:</span> gemini-3-flash-preview</li>
-                        <li><span className="font-semibold text-slate-700">Full alignment analysis:</span> gemini-3.1-pro-preview</li>
-                      </ul>
-                    </div>
                     <div className="mt-2 border border-blue-100 rounded-xl overflow-hidden bg-slate-50">
                       <button onClick={() => setIsUseCasesOpen(!isUseCasesOpen)} className="w-full flex items-center justify-between p-4 hover:bg-blue-50 transition-colors text-left outline-none group">
                         <span className="font-bold text-blue-700 text-lg flex items-center gap-3">
@@ -538,6 +528,16 @@ const App: React.FC = () => {
                           </ul>
                         </div>
                       )}
+                    </div>
+                    <div className="mt-2 p-4 rounded-xl border border-blue-100 bg-slate-50">
+                      <p className="font-bold text-blue-700 text-base flex items-center gap-2 mb-2">
+                        <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        AI Models Used
+                      </p>
+                      <ul className="space-y-1 text-slate-600 text-sm ml-7">
+                        <li><span className="font-semibold text-slate-700">Document scan:</span> gemini-3-flash-preview</li>
+                        <li><span className="font-semibold text-slate-700">Full alignment analysis:</span> gemini-3.1-pro-preview</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
@@ -611,7 +611,7 @@ const App: React.FC = () => {
                         onClick={handleDrivePicker}
                         className="text-xs font-bold text-emerald-600 cursor-pointer hover:bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-100 transition-all flex items-center gap-2 shadow-sm"
                       >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M7.71 3.5L1.15 15l3.43 6 6.55-11.5h-3.42zM9.73 15l3.42 6h13.1l-3.42-6H9.73zM16.29 3.5L9.74 15h6.84l6.55-11.5h-6.84z"/></svg>
+                        <svg className="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor"><path d="M220-100q-17 0-34.5-10.5T160-135L60-310q-8-14-8-34.5t8-34.5l260-446q8-14 25.5-24.5T380-860h200q17 0 34.5 10.5T640-825l182 312q-23-6-47.5-8t-48.5 2L574-780H386L132-344l94 164h316q11 23 25.5 43t33.5 37H220Zm70-180-29-51 183-319h72l101 176q-17 13-31.5 28.5T560-413l-80-139-110 192h164q-7 19-10.5 39t-3.5 41H290Zm430 160v-120H600v-80h120v-120h80v120h120v80H800v120h-80Z"/></svg>
                         Drive
                       </button>
                     </div>
