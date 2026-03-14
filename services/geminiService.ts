@@ -308,8 +308,14 @@ Output ONLY valid JSON, no additional text.
   const mloText = mlos.map(m => `${m.moduleName}: ${m.objectives.join('; ')}`).join('\n');
   const moduleSummaries = extracted.modules.map(m => `${m.moduleName}: ${m.items.map(i => `[${i.type}] ${i.title}`).join('; ')}`).join('\n');
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite-preview", // Flash-Lite for alignment: free tier compatible, sufficient for compact JSON reasoning
+  // Try Pro first for highest quality alignment; fall back to Flash-Lite if free tier blocks Pro
+  const isQuotaError = (err: any): boolean => {
+    const msg = err?.message || err?.toString() || '';
+    return msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota');
+  };
+
+  const tryAlignment = async (model: string) => ai.models.generateContent({
+    model,
     contents: `
 Course: ${courseInfo || 'N/A'} (${courseContext}, ${courseLength})
 
@@ -406,8 +412,23 @@ Create complete alignment mappings.
     }
   });
 
+  // Attempt Pro first, then fall back to Flash-Lite on quota errors
+  let response;
+  let usedFallback = false;
+  try {
+    response = await tryAlignment("gemini-3.1-pro-preview");
+  } catch (err) {
+    if (isQuotaError(err)) {
+      console.warn("Pro model quota exceeded — retrying with Flash-Lite fallback");
+      usedFallback = true;
+      response = await tryAlignment("gemini-3.1-flash-lite-preview");
+    } else {
+      throw err;
+    }
+  }
+
   if (!response.text) throw new Error("Alignment mapping creation failed");
-  return JSON.parse(response.text) as AlignmentResult;
+  return { ...(JSON.parse(response.text) as AlignmentResult), usedFallback };
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -485,7 +506,8 @@ export const generateDesignMap = async (
           }))
         }))
       })),
-      moduleMappings: alignment.moduleMappings
+      moduleMappings: alignment.moduleMappings,
+      usedFallbackModel: alignment.usedFallback ?? false
     };
 
     return result;

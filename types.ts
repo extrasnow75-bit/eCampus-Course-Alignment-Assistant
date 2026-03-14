@@ -58,6 +58,7 @@ export interface DesignMap {
   qmFeedback: QMFeedback;
   cloMappings: CLOMapping[];
   moduleMappings: ModuleMapping[];
+  usedFallbackModel?: boolean; // true when Pro was unavailable and Flash-Lite was used instead
 }
 
 export interface AutoFillResults {
