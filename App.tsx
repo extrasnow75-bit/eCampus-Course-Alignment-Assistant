@@ -12,7 +12,7 @@ import { Key, LogOut, ChevronDown, Settings2 } from 'lucide-react';
 declare const mammoth: any;
 declare const pdfjsLib: any;
 
-const MAX_CHARS = 100000;
+const MAX_CHARS = 300000;
 
 const App: React.FC = () => {
   const [clos, setClos] = useState('');

@@ -99,7 +99,7 @@ IMPORTANT:
 
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",
-    contents: `Extract document structure:\n\n${documentContent.substring(0, 25000)}`,
+    contents: `Extract document structure:\n\n${documentContent}`,
     config: {
       systemInstruction,
       responseMimeType: "application/json",
