@@ -733,7 +733,7 @@ const App: React.FC = () => {
                     <textarea value={ulos} onChange={(e) => setUlos(e.target.value)} placeholder="Paste ULOs..." className="w-full h-48 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white resize-none text-lg" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">8. Where are module objectives located?</label>
+                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">8. Where are module objectives (MLOs) located?</label>
                     <textarea value={objectiveLocation} onChange={(e) => setObjectiveLocation(e.target.value)} placeholder="e.g. Describe location..." className="w-full h-28 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white text-lg italic text-slate-600" />
                   </div>
                   <div>
