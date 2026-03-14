@@ -28,6 +28,26 @@ const stripHtml = (text: string): string => {
     .trim();
 };
 
+// Converts a raw error string into a short, plain-English summary.
+const getErrorSummary = (err: string): string => {
+  if (err.includes('429') || err.includes('RESOURCE_EXHAUSTED') || err.includes('quota')) {
+    return 'Gemini API quota exceeded. Your daily or per-minute limit has been reached. Please wait a few minutes and try again, or check your usage at ai.dev/rate-limit.';
+  }
+  if (err.includes('401') || err.includes('403') || err.includes('API key') || err.includes('api_key')) {
+    return 'Invalid or missing API key. Please check your Gemini API key in the setup panel above.';
+  }
+  if (err.includes('Failed to fetch') || err.includes('NetworkError') || err.includes('network')) {
+    return 'Network error. Please check your internet connection and try again.';
+  }
+  if (err.includes('timeout') || err.includes('DEADLINE_EXCEEDED')) {
+    return 'The request timed out. The document may be too large — try reducing its size and try again.';
+  }
+  if (err.includes('INVALID_ARGUMENT') || err.includes('invalid')) {
+    return 'Invalid request. There may be an issue with the document format or content.';
+  }
+  return 'An unexpected error occurred. See the details below for more information.';
+};
+
 const App: React.FC = () => {
   const [clos, setClos] = useState('');
   const [plos, setPlos] = useState('');
@@ -54,6 +74,8 @@ const App: React.FC = () => {
   const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
   const [user, setUser] = useState<{ access_token: string; expires_at?: number } | null>(null);
   const [reportType, setReportType] = useState<'full' | 'partial'>('full');
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
+  const [errorCopied, setErrorCopied] = useState(false);
 
   // Restore Google session on mount via Firebase auth state.
   // We use an `initialized` flag to avoid the race where Firebase fires
@@ -259,6 +281,7 @@ const App: React.FC = () => {
     setReportType(type);
     setIsLoading(true);
     setError(null);
+    setShowErrorDetails(false);
     const cleanedContent = stripHtml(documentContent);
     try {
       const data = await generateDesignMap(
@@ -356,16 +379,10 @@ const App: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => setIsHelpOpen(!isHelpOpen)}
-              className="flex items-center gap-2 px-4 py-2 text-[#0033A0] hover:bg-slate-50 rounded-lg transition-colors outline-none font-semibold text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-all font-bold text-sm border border-gray-200 active:scale-95"
             >
-              <svg className="w-5 h-5 shrink-0 text-[#0033A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
               <span>Help Center & More</span>
-              <svg
-                className={`w-4 h-4 text-[#0033A0] transition-transform duration-300 ${isHelpOpen ? 'rotate-180' : ''}`}
-                fill="none" stroke="currentColor" viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-              </svg>
             </button>
 
             {/* Dropdown Menu */}
@@ -400,6 +417,16 @@ const App: React.FC = () => {
                   >
                     <svg className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                     Companion App
+                  </a>
+                  <div className="border-t border-slate-100 my-1" />
+                  <a
+                    href="https://docs.google.com/document/d/1GPIXFfo81JDEQQVh9m16iYgKK9vi9-ietIXzAYP6CVU/edit?usp=drivesdk"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 text-blue-700 font-semibold transition-colors text-sm group"
+                  >
+                    <svg className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                    App Suggestions
                   </a>
                 </div>
               </div>
@@ -688,7 +715,50 @@ const App: React.FC = () => {
               </div>
             </section>
           </div>
-          {error && <div className="mt-10 p-6 bg-red-50 border border-red-100 text-red-700 rounded-xl text-lg flex items-center gap-4"><svg className="w-6 h-6 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path></svg>{error}</div>}
+          {error && (
+            <div className="mt-10 bg-red-50 border border-red-200 rounded-xl overflow-hidden">
+              {/* Summary row */}
+              <div className="p-5 flex items-start gap-4">
+                <svg className="w-6 h-6 shrink-0 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <p className="text-red-800 font-medium text-base flex-1">{getErrorSummary(error)}</p>
+              </div>
+              {/* Action bar */}
+              <div className="px-5 pb-4 flex items-center gap-3">
+                <button
+                  onClick={() => setShowErrorDetails(v => !v)}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-red-600 hover:text-red-800 transition-colors"
+                >
+                  <svg className={`w-4 h-4 transition-transform duration-200 ${showErrorDetails ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                  {showErrorDetails ? 'Hide details' : 'Show details'}
+                </button>
+                <span className="text-red-300">|</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(error);
+                    setErrorCopied(true);
+                    setTimeout(() => setErrorCopied(false), 2000);
+                  }}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-red-600 hover:text-red-800 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3" />
+                  </svg>
+                  {errorCopied ? 'Copied!' : 'Copy error'}
+                </button>
+              </div>
+              {/* Collapsible full error */}
+              {showErrorDetails && (
+                <div className="border-t border-red-200 px-5 py-4">
+                  <p className="text-xs font-bold text-red-500 uppercase tracking-wider mb-2">Full error details</p>
+                  <pre className="text-xs text-red-700 whitespace-pre-wrap break-all font-mono bg-red-100 rounded-lg p-3 max-h-48 overflow-y-auto">{error}</pre>
+                </div>
+              )}
+            </div>
+          )}
           <div className="mt-14 flex flex-col items-center gap-4">
             <button onClick={() => handleGenerate('partial')} disabled={isLoading || isParsing} className="group relative w-full md:w-auto px-20 py-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-xl transition-all transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50">
               <div className="flex items-center justify-center gap-4"><span className="text-2xl">Generate Complete List of Objectives</span><svg className="w-8 h-8 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg></div>
