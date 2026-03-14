@@ -14,6 +14,20 @@ declare const pdfjsLib: any;
 
 const MAX_CHARS = 300000;
 
+// Strips HTML markup and collapses whitespace — DOM-based so it's safe and accurate.
+// PDF.js and Mammoth already return plain text, but Drive downloads and pasted content
+// can contain raw HTML from Canvas exports.
+const stripHtml = (text: string): string => {
+  if (!text.includes('<')) return text; // Fast-path: no tags, skip DOM entirely
+  const div = document.createElement('div');
+  div.innerHTML = text;
+  const stripped = (div.innerText || div.textContent || '');
+  return stripped
+    .replace(/\n{3,}/g, '\n\n')   // collapse 3+ blank lines → 2
+    .replace(/[ \t]{2,}/g, ' ')   // collapse multiple spaces/tabs → 1
+    .trim();
+};
+
 const App: React.FC = () => {
   const [clos, setClos] = useState('');
   const [plos, setPlos] = useState('');
@@ -181,7 +195,7 @@ const App: React.FC = () => {
                 if (!res.ok) throw new Error(`Failed to download file (HTTP ${res.status})`);
                 text = await res.text();
               }
-              setDocumentContent(text.slice(0, MAX_CHARS));
+              setDocumentContent(stripHtml(text).slice(0, MAX_CHARS));
             } catch (err: any) {
               setError(err.message || 'Failed to download file from Google Drive.');
             } finally {
@@ -245,10 +259,11 @@ const App: React.FC = () => {
     setReportType(type);
     setIsLoading(true);
     setError(null);
+    const cleanedContent = stripHtml(documentContent);
     try {
       const data = await generateDesignMap(
         clos,
-        documentContent,
+        cleanedContent,
         finalContext,
         courseLength,
         plos,
@@ -287,14 +302,14 @@ const App: React.FC = () => {
           const pageText = textContent.items.map((item: any) => item.str).join(' ');
           fullText += pageText + '\n';
         }
-        setDocumentContent(fullText.slice(0, MAX_CHARS));
+        setDocumentContent(stripHtml(fullText).slice(0, MAX_CHARS));
       } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
-        setDocumentContent(result.value.slice(0, MAX_CHARS));
+        setDocumentContent(stripHtml(result.value).slice(0, MAX_CHARS));
       } else {
         const text = await file.text();
-        setDocumentContent(text.slice(0, MAX_CHARS));
+        setDocumentContent(stripHtml(text).slice(0, MAX_CHARS));
       }
     } catch (err) {
       console.error('File parsing error:', err);
