@@ -352,7 +352,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-20">
-      {isLoading && <LoadingOverlay />}
+      {isLoading && <LoadingOverlay reportType={reportType} />}
 
       <header className="bg-[#0033A0] text-white pt-12 pb-14 px-4 relative shadow-md overflow-hidden">
         <div className="max-w-7xl mx-auto relative flex flex-col items-center">

@@ -465,35 +465,48 @@ export const MappingResult: React.FC<Props> = ({ data, onReset, reportType = 'fu
 
   return (
     <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-10 rounded-xl shadow-sm border border-slate-200 gap-6">
-        <div>
-          <h2 className="text-4xl font-extrabold text-slate-900">{data.courseTitle}</h2>
-          <div className="flex items-center gap-3 mt-2">
-            <p className="text-slate-500 text-xl">{reportType === 'partial' ? 'List of Objectives' : 'Course Design Alignment Report'}</p>
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-            <p className="text-slate-500 text-xl">{data.courseLength}</p>
-          </div>
+      {/* Cover header — matches DOCX cover page style */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-[#0033A0] px-10 py-8 text-center">
+          <h2 className="text-3xl font-extrabold text-white uppercase tracking-widest">
+            {reportType === 'partial' ? 'List of Objectives' : 'Course Alignment Report'}
+          </h2>
         </div>
-        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-          <button onClick={downloadWord} className="px-8 py-4 text-lg font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-lg flex items-center justify-center gap-3">
-            Download .docx
-          </button>
-          <button onClick={onReset} className="px-8 py-4 text-lg font-bold text-red-600 hover:text-white hover:bg-red-600 bg-white rounded-xl transition-all border border-red-200">
-            Clear Report
-          </button>
+        <div className="h-1.5 bg-[#D64309]" />
+        <div className="px-10 py-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="space-y-1">
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Course Name</p>
+            <p className="text-2xl font-bold text-slate-900">{data.courseTitle}</p>
+            {data.courseLength && <p className="text-slate-500 text-base">{data.courseLength}</p>}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+            <button onClick={downloadWord} className="px-8 py-4 text-lg font-bold text-white bg-[#0033A0] hover:bg-blue-900 rounded-xl transition-all shadow-lg flex items-center justify-center gap-3">
+              Download .docx
+            </button>
+            <button onClick={onReset} className="px-8 py-4 text-lg font-bold text-red-600 hover:text-white hover:bg-red-600 bg-white rounded-xl transition-all border border-red-200">
+              Clear Report
+            </button>
+          </div>
         </div>
       </div>
 
       {reportType === 'full' && (
-        <div className="bg-white border border-slate-200 p-10 rounded-xl shadow-sm">
-          <h3 className="text-3xl font-bold text-[#E36C09] text-center mb-8 uppercase tracking-wide">Executive Summary</h3>
-          <p className="text-slate-700 text-xl leading-relaxed">{data.executiveSummary}</p>
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="border-b-2 border-[#D64309] px-10 pt-8 pb-4">
+            <h3 className="text-2xl font-extrabold text-[#0033A0] text-center uppercase tracking-widest">Executive Summary</h3>
+          </div>
+          <div className="p-10">
+            <p className="text-slate-700 text-xl leading-relaxed">{data.executiveSummary}</p>
+          </div>
         </div>
       )}
 
       {data.ulos && data.ulos.length > 0 && (
-        <section className="bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
-          <h3 className="text-3xl font-bold text-[#E36C09] text-center mb-8 border-b pb-4">List of University Learning Objectives (ULOs)</h3>
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="border-b-2 border-[#D64309] px-10 pt-8 pb-4">
+            <h3 className="text-2xl font-extrabold text-[#0033A0] text-center uppercase tracking-widest">List of University Learning Objectives (ULOs)</h3>
+          </div>
+          <div className="p-10">
 
           <div className="space-y-8">
             {['Interdisciplinary', 'Disciplinary'].map(cat => {
@@ -523,13 +536,16 @@ export const MappingResult: React.FC<Props> = ({ data, onReset, reportType = 'fu
           </div>
 
           <p className="mt-10 text-sm text-slate-400 italic">Source: <a href="https://www.boisestate.edu/provost/university-learning-outcomes/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">University Learning Outcomes</a></p>
+          </div>
         </section>
       )}
 
       {data.plos && data.plos.length > 0 && (
-        <section className="bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
-          <h3 className="text-3xl font-bold text-[#E36C09] text-center mb-8 border-b pb-4">List of Program Learning Objectives (PLOs)</h3>
-          <div className="space-y-4">
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="border-b-2 border-[#D64309] px-10 pt-8 pb-4">
+            <h3 className="text-2xl font-extrabold text-[#0033A0] text-center uppercase tracking-widest">List of Program Learning Objectives (PLOs)</h3>
+          </div>
+          <div className="p-10 space-y-4">
             {data.plos.map((plo, i) => (
               <div key={i} className="flex gap-4 p-5 bg-slate-50 rounded-xl">
                 <span className="font-bold text-[#0033A0] shrink-0 text-lg">PLO#{i+1}:</span>
@@ -540,9 +556,11 @@ export const MappingResult: React.FC<Props> = ({ data, onReset, reportType = 'fu
         </section>
       )}
 
-      <section className="bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
-        <h3 className="text-3xl font-bold text-[#E36C09] text-center mb-8 border-b pb-4">List of Course Learning Objectives (CLOs)</h3>
-        <div className="space-y-4">
+      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="border-b-2 border-[#D64309] px-10 pt-8 pb-4">
+          <h3 className="text-2xl font-extrabold text-[#0033A0] text-center uppercase tracking-widest">List of Course Learning Objectives (CLOs)</h3>
+        </div>
+        <div className="p-10 space-y-4">
           {data.clos.map((clo, i) => (
             <div key={i} className="flex gap-4 p-5 bg-slate-50 rounded-xl">
               <span className="font-bold text-[#0033A0] shrink-0 text-lg">CLO#{i+1}:</span>
@@ -552,13 +570,15 @@ export const MappingResult: React.FC<Props> = ({ data, onReset, reportType = 'fu
         </div>
       </section>
 
-      <section className="bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
-        <h3 className="text-3xl font-bold text-[#E36C09] text-center mb-8 border-b pb-4">List of Module Learning Objectives (MLOs)</h3>
-        <div className="space-y-12">
+      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="border-b-2 border-[#D64309] px-10 pt-8 pb-4">
+          <h3 className="text-2xl font-extrabold text-[#0033A0] text-center uppercase tracking-widest">List of Module Learning Objectives (MLOs)</h3>
+        </div>
+        <div className="p-10 space-y-12">
           {data.mlosByModule.map((mod, i) => (
             <div key={i}>
-              <h4 className="text-2xl font-bold text-[#0033A0] mb-6">Module Learning Objectives From {mod.moduleName}</h4>
-              <div className="space-y-3 pl-6 border-l-4 border-blue-100">
+              <h4 className="text-2xl font-bold text-[#0033A0] mb-6">{mod.moduleName}</h4>
+              <div className="space-y-3 pl-6 border-l-4 border-[#D64309]">
                 {mod.objectives.map((obj, objIdx) => (
                   <div key={objIdx} className="flex gap-3 items-start">
                     <span className="font-bold text-slate-500 shrink-0 text-lg">MLO#{objIdx+1}:</span>
@@ -566,7 +586,7 @@ export const MappingResult: React.FC<Props> = ({ data, onReset, reportType = 'fu
                       <div className="flex gap-2 items-center mb-1">
                         <p className="text-slate-700 text-lg">{obj}</p>
                         {mod.isGenerated && (
-                          <span className="inline-block px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-bold rounded-full border border-gray-300">Draft MLO</span>
+                          <span className="inline-block px-2.5 py-1 bg-orange-50 text-[#D64309] text-xs font-bold rounded-full border border-orange-200">Draft MLO</span>
                         )}
                       </div>
                     </div>
@@ -580,9 +600,11 @@ export const MappingResult: React.FC<Props> = ({ data, onReset, reportType = 'fu
 
       {reportType === 'full' && (
         <>
-          <section className="bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
-            <h3 className="text-3xl font-bold text-[#E36C09] text-center mb-8 border-b pb-4">Feedback On Objectives (QM General Standard 2)</h3>
-            <div className="space-y-8">
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="border-b-2 border-[#D64309] px-10 pt-8 pb-4">
+              <h3 className="text-2xl font-extrabold text-[#0033A0] text-center uppercase tracking-widest">Feedback On Objectives (QM General Standard 2)</h3>
+            </div>
+            <div className="p-10 space-y-8">
               {[
                 { id: '2.1', title: 'The course-level learning objectives describe outcomes that are measurable.', text: data.qmFeedback.qm2_1 },
                 { id: '2.2', title: 'The module/unit-level learning objectives describe outcomes that are measurable and consistent with the course-level objectives.', text: data.qmFeedback.qm2_2 },
@@ -590,20 +612,24 @@ export const MappingResult: React.FC<Props> = ({ data, onReset, reportType = 'fu
                 { id: '2.4', title: 'The relationship between learning objectives, learning activities, and assessments is made clear.', text: data.qmFeedback.qm2_4 },
                 { id: '2.5', title: 'The learning objectives are suited to and reflect the level of the course.', text: data.qmFeedback.qm2_5 }
               ].map((qm, i) => (
-                <div key={i} className="bg-slate-50 p-8 rounded-xl border border-slate-100">
+                <div key={i} className="bg-slate-50 p-8 rounded-xl border-l-4 border-[#0033A0]">
                   <h4 className="font-bold text-[#0033A0] text-xl mb-3">QM {qm.id}: {qm.title}</h4>
                   <p className="text-slate-600 text-lg leading-relaxed italic">"{qm.text}"</p>
                 </div>
               ))}
+              <p className="text-sm text-slate-400 italic">Source: <a href="https://www.qualitymatters.org/qa-resources/rubric-standards/higher-ed-publisher-rubric" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">QM Course Design Rubric Standards (Higher Ed. Standards)</a></p>
             </div>
-            <p className="mt-10 text-sm text-slate-400 italic">Source: <a href="https://www.qualitymatters.org/qa-resources/rubric-standards/higher-ed-publisher-rubric" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">QM Course Design Rubric Standards (Higher Ed. Standards)</a></p>
           </section>
 
-          <div className="space-y-16">
-            <h3 className="text-4xl font-bold text-center text-[#E36C09]">Alignment Organized By CLOs</h3>
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="border-b-2 border-[#D64309] px-10 pt-8 pb-4">
+              <h3 className="text-2xl font-extrabold text-[#0033A0] text-center uppercase tracking-widest">Alignment Organized By CLOs</h3>
+            </div>
+          </section>
+          <div className="space-y-8">
             {data.cloMappings.map((mapping, idx) => (
               <section key={idx} className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
-                <div className="p-8 border-b border-slate-100 bg-slate-50">
+                <div className="p-8 border-b-2 border-[#D64309] bg-slate-50">
                   <h3 className="text-2xl font-bold text-[#0033A0]">CLO#{idx + 1}: {mapping.clo}</h3>
                 </div>
                 <div className="p-8 space-y-8">
@@ -636,11 +662,15 @@ export const MappingResult: React.FC<Props> = ({ data, onReset, reportType = 'fu
             ))}
           </div>
 
-          <div className="space-y-16">
-            <h3 className="text-4xl font-bold text-center text-[#E36C09]">Alignment Organized By Modules</h3>
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="border-b-2 border-[#D64309] px-10 pt-8 pb-4">
+              <h3 className="text-2xl font-extrabold text-[#0033A0] text-center uppercase tracking-widest">Alignment Organized By Modules</h3>
+            </div>
+          </section>
+          <div className="space-y-8">
             {data.moduleMappings.map((mod, idx) => (
               <section key={idx} className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
-                <div className="p-8 border-b border-slate-100 bg-slate-50">
+                <div className="p-8 border-b-2 border-[#D64309] bg-slate-50">
                   <h3 className="text-2xl font-bold text-[#0033A0]">{mod.moduleName}</h3>
                 </div>
                 <div className="p-8 space-y-8">

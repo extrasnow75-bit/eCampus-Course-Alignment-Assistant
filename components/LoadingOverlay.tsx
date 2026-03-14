@@ -1,9 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 
-export const LoadingOverlay: React.FC = () => {
+interface LoadingOverlayProps {
+  reportType?: 'full' | 'partial';
+}
+
+export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({ reportType = 'full' }) => {
   const [seconds, setSeconds] = useState(0);
-  const expectedDuration = 120; // Increased to 2 minutes for better accuracy
+  const expectedDuration = reportType === 'partial' ? 60 : 120;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -34,9 +38,13 @@ export const LoadingOverlay: React.FC = () => {
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4">
       <div className="bg-white rounded-2xl p-10 shadow-2xl flex flex-col items-center max-w-xl w-full animate-in fade-in zoom-in duration-300">
         <div className="w-20 h-20 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-8"></div>
-        <h3 className="text-2xl font-extrabold text-slate-800 mb-4">Analyzing Course Alignment</h3>
+        <h3 className="text-2xl font-extrabold text-slate-800 mb-4">
+          {reportType === 'partial' ? 'Compiling Course Objectives' : 'Analyzing Course Alignment'}
+        </h3>
         <p className="text-lg text-slate-500 text-center mb-6 leading-relaxed">
-          Our AI instructional design assistant is listing, organizing, mapping, and evaluating the objectives as well as giving you a draft alignment report. . .
+          {reportType === 'partial'
+            ? 'Our AI instructional design assistant is gathering, organizing, and listing all of the objectives in the course. The report will be ready shortly.'
+            : 'Our AI instructional design assistant is listing, organizing, mapping, and evaluating the objectives as well as giving you a draft alignment report. . .'}
         </p>
         
         <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden mb-4">
@@ -51,7 +59,9 @@ export const LoadingOverlay: React.FC = () => {
           <span>Expected Duration: {formatTime(expectedDuration)}</span>
         </div>
 
-        <p className="text-sm text-slate-400 uppercase tracking-widest font-bold">Generating Findings</p>
+        <p className="text-sm text-slate-400 uppercase tracking-widest font-bold">
+          {reportType === 'partial' ? 'Generating Objectives List' : 'Generating Findings'}
+        </p>
       </div>
     </div>
   );
