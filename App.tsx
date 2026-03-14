@@ -387,79 +387,80 @@ const App: React.FC = () => {
 
             {/* Dropdown Menu */}
             {isHelpOpen && (
-              <div className="absolute right-0 mt-1 w-[28rem] bg-white border border-slate-200 rounded-xl shadow-lg z-50 animate-in slide-in-from-top-2 duration-200">
-                <div className="p-4 flex flex-col gap-3">
+              <div className="absolute right-0 mt-1 w-[28rem] bg-white border border-slate-200 rounded-xl shadow-lg z-50 animate-in slide-in-from-top-2 duration-200 max-h-[85vh] overflow-y-auto">
+                <div className="p-5 flex flex-col gap-6">
 
-                  {/* Gemini API Key Instructions */}
-                  <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-2">
-                    <p className="text-sm font-black text-gray-900">How To Get a Gemini API Key</p>
-                    <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600">
-                      <li>Go to <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a>.</li>
-                      <li>Sign in with your Google or SSO account, such as your Boise State University email.</li>
-                      <li>
-                        Create the key:
-                        <ol className="list-[lower-alpha] list-inside space-y-1 mt-1 ml-4">
-                          <li>Click <span className="font-bold">"Get API key"</span> on the left.</li>
-                          <li>Click the <span className="font-bold">"Create API key"</span> button.</li>
-                        </ol>
-                      </li>
-                      <li>Copy the string of letters and numbers that appears.</li>
-                      <li>Paste it into the <span className="font-bold">Gemini API Key</span> field in the setup panel above.</li>
-                    </ol>
-                    <p className="text-xs text-gray-500">
-                      Source:{' '}
-                      <a
-                        href="https://docs.google.com/document/d/1Ce1gOTozOD3TGd8ntPz3oEWJjU-Y07K2akuIJHXnzHk/edit?tab=t.0#heading=h.xaazhwt982j4"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        What a Gemini API Key Is, and How and Why to Get One
+                  {/* AI Setup */}
+                  <section>
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-3">AI Setup</h3>
+                    <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-2">
+                      <p className="text-sm font-black text-gray-900">How To Get a Gemini API Key</p>
+                      <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600">
+                        <li>Go to <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a>.</li>
+                        <li>Sign in with your Google or SSO account, such as your Boise State University email.</li>
+                        <li>
+                          Create the key:
+                          <ol className="list-[lower-alpha] list-inside space-y-1 mt-1 ml-4">
+                            <li>Click <span className="font-bold">"Get API key"</span> on the left.</li>
+                            <li>Click the <span className="font-bold">"Create API key"</span> button.</li>
+                          </ol>
+                        </li>
+                        <li>Copy the string of letters and numbers that appears.</li>
+                        <li>Paste it into the <span className="font-bold">Gemini API Key</span> field in the setup panel above.</li>
+                      </ol>
+                      <p className="text-xs text-gray-500">
+                        Source:{' '}
+                        <a href="https://docs.google.com/document/d/1Ce1gOTozOD3TGd8ntPz3oEWJjU-Y07K2akuIJHXnzHk/edit?tab=t.0#heading=h.xaazhwt982j4" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          What a Gemini API Key Is, and How and Why to Get One
+                        </a>
+                      </p>
+                    </div>
+                  </section>
+
+                  {/* Resources & Training */}
+                  <section>
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Resources & Training</h3>
+                    <div className="flex flex-col gap-2">
+                      <a href="https://docs.google.com/document/d/1g4WLYmFsdiXvBi0LPZPCMgv6SwnhTBxzh7dLmMt0O40/edit?tab=t.0" target="_blank" rel="noopener noreferrer"
+                        className="flex items-center justify-between p-3 bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 rounded-xl transition-all group">
+                        <span className="text-sm font-bold text-gray-800 group-hover:text-blue-700">How to use this app</span>
+                        <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-500 shrink-0 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                       </a>
-                    </p>
-                  </div>
+                      <a href="https://drive.google.com/drive/folders/1FReC8oz-JKMDiI1HNwqKcFMfDektxsAw" target="_blank" rel="noopener noreferrer"
+                        className="flex items-center justify-between p-3 bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 rounded-xl transition-all group">
+                        <span className="text-sm font-bold text-gray-800 group-hover:text-blue-700">Training Documents</span>
+                        <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-500 shrink-0 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                      </a>
+                      <a href="https://boisestateecampus.atlassian.net/wiki/spaces/EKB/pages/3503652868/The+eCampus+Content+Export+Tool+Canvas+to+Google+Doc" target="_blank" rel="noopener noreferrer"
+                        className="flex items-center justify-between p-3 bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 rounded-xl transition-all group">
+                        <span className="text-sm font-bold text-gray-800 group-hover:text-blue-700">Companion App</span>
+                        <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-500 shrink-0 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                      </a>
+                    </div>
+                  </section>
 
-                  <div className="border-t border-slate-100 my-1" />
+                  {/* App Suggestions */}
+                  <section>
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Find bugs? Have improvement requests?</h3>
+                    <a href="https://docs.google.com/document/d/1GPIXFfo81JDEQQVh9m16iYgKK9vi9-ietIXzAYP6CVU/edit?usp=drivesdk" target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-between p-3 bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 rounded-xl transition-all group">
+                      <span className="text-sm font-bold text-gray-800 group-hover:text-blue-700">App Suggestions Document</span>
+                      <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-500 shrink-0 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    </a>
+                  </section>
 
-                  <a
-                    href="https://docs.google.com/document/d/1g4WLYmFsdiXvBi0LPZPCMgv6SwnhTBxzh7dLmMt0O40/edit?tab=t.0"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 text-blue-700 font-semibold transition-colors text-sm group"
-                  >
-                    <svg className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                    How to use this app
-                  </a>
-                  <a
-                    href="https://drive.google.com/drive/folders/1FReC8oz-JKMDiI1HNwqKcFMfDektxsAw"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 text-blue-700 font-semibold transition-colors text-sm group"
-                  >
-                    <svg className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                    Training Documents
-                  </a>
-                  <a
-                    href="https://boisestateecampus.atlassian.net/wiki/spaces/EKB/pages/3503652868/The+eCampus+Content+Export+Tool+Canvas+to+Google+Doc"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 text-blue-700 font-semibold transition-colors text-sm group"
-                  >
-                    <svg className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                    Companion App
-                  </a>
-                  <div className="border-t border-slate-100 my-1" />
-                  <a
-                    href="https://docs.google.com/document/d/1GPIXFfo81JDEQQVh9m16iYgKK9vi9-ietIXzAYP6CVU/edit?usp=drivesdk"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 text-blue-700 font-semibold transition-colors text-sm group"
-                  >
-                    <svg className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
-                    App Suggestions
-                  </a>
+                  {/* AI Models Used */}
+                  <section>
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-3">AI Models Used</h3>
+                    <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl">
+                      <ul className="space-y-1.5 text-sm text-gray-600">
+                        <li><span className="font-semibold text-gray-700">Document extraction:</span> gemini-3.1-flash-lite-preview</li>
+                        <li><span className="font-semibold text-gray-700">MLO & QM feedback:</span> gemini-3.1-flash-lite-preview</li>
+                        <li><span className="font-semibold text-gray-700">Alignment analysis:</span> gemini-3.1-pro-preview</li>
+                      </ul>
+                    </div>
+                  </section>
+
                 </div>
               </div>
             )}
