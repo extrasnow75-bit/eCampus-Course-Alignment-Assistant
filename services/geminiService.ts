@@ -8,10 +8,10 @@ export const analyzeCourseDocument = async (content: string, apiKey?: string): P
     throw new Error("No Gemini API key provided. Please set your key in Settings.");
   }
   const ai = new GoogleGenAI({ apiKey: activeKey });
-  
+
   const systemInstruction = `
     You are an expert instructional designer. Analyze the provided course design document and extract specific details to help fill out a course alignment form.
-    
+
     EXTRACT:
     - Course Context: Undergraduate, Master's, Doctoral, or Professional Development.
     - Course Info: Dept, number, and title (e.g., MATH 108: Intermediate Algebra).
@@ -24,7 +24,7 @@ export const analyzeCourseDocument = async (content: string, apiKey?: string): P
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: `Analyze this document content and return JSON:\n\n${content.substring(0, 20000)}`, // Truncate if extreme, but flash handles large context
+    contents: `Analyze this document content and return JSON:\n\n${content.substring(0, 20000)}`,
     config: {
       systemInstruction,
       responseMimeType: "application/json",
@@ -48,92 +48,58 @@ export const analyzeCourseDocument = async (content: string, apiKey?: string): P
   return JSON.parse(response.text) as AutoFillResults;
 };
 
-export const generateDesignMap = async (
-  clos: string,
+// ══════════════════════════════════════════════════════════════════════════════
+// STEP 1: Extract document structure into compact JSON (Token Distillation)
+// Uses: Gemini 3.1 Pro (better at complex extraction)
+// ══════════════════════════════════════════════════════════════════════════════
+interface ExtractedDocumentStructure {
+  courseTitle: string;
+  modules: Array<{
+    moduleName: string;
+    objectives?: string[];
+    items: Array<{
+      type: 'Reading' | 'Multimedia' | 'Quiz' | 'Assignment' | 'Discussion' | 'Other';
+      title: string;
+    }>;
+    summary: string;
+  }>;
+  plos: string[];
+}
+
+const extractDocumentStructure = async (
   documentContent: string,
+  courseInfo: string,
   courseContext: string,
   courseLength: string,
-  plos?: string,
-  ulos?: string,
-  exclusions?: string,
-  objectiveLocation?: string,
-  courseInfo?: string,
-  additionalInfo?: string,
-  apiKey?: string
-): Promise<DesignMap> => {
-  const activeKey = apiKey || process.env.API_KEY || process.env.GEMINI_API_KEY;
-  if (!activeKey) {
-    throw new Error("No Gemini API key provided. Please set your key in Settings.");
-  }
-  const ai = new GoogleGenAI({ apiKey: activeKey });
-  
-  const systemInstruction = `
-    You are an expert instructional designer and evaluation specialist for Boise State University.
-    Your task is to create a draft course design map and evaluate it against Boise State's QM+ Standards.
-    
-    COURSE PARAMETERS:
-    - Level: ${courseContext}
-    - Duration: ${courseLength}
-    
-    GUIDANCE ON QM+ STANDARDS (General Standard 2):
-    - QM 2.1: Course-level objectives (CLOs) must be measurable (e.g., use active verbs, avoid "understand" or "learn").
-    - QM 2.2: Module-level objectives (MLOs) must be measurable and consistent with CLOs.
-    - QM 2.3: Objectives must be clearly stated, learner-centered (written from learner's perspective), and prominently located.
-    - QM 2.4: The relationship between objectives, learning activities, and assessments must be clear (a "straight line").
-    - QM 2.5: Objectives must reflect the course level (e.g., 100-level = identify/describe; 400-level = evaluate/analyze; 800-level = design/create).
-    
-    BOISE STATE UNIVERSITY LEARNING OBJECTIVES (ULOs) DEFINITIONS:
-    - Written Communication: Write effectively in multiple contexts, for a variety of audiences. (Note: Any course with written assignments, essays, or reports should likely address this).
-    - Oral Communication: Communicate effectively in speech, both as a speaker and listener.
-    - Critical Inquiry: Engage in effective critical inquiry by defining problems, gathering and evaluating evidence, and determining the adequacy of argumentative discourse.
-    - Ethics: Analyze ethical issues in personal, professional, and civic life and produce reasoned evaluations of competing value systems and ethical claims.
-    - Mathematical Reasoning: Apply knowledge and the methods of reasoning characteristic of mathematics to solve college-level problems.
-    - Natural, Physical, and Applied Sciences: Apply knowledge and the methods characteristic of scientific inquiry to think critically about and solve theoretical and practical problems about physical structures and processes.
-    - Visual and Performing Arts: Apply knowledge and methods characteristic of visual and performing arts to explain and appreciate the significance of aesthetic products and creative activities.
-    - Humanities: Apply knowledge and the methods of inquiry characteristic of humanities disciplines to interpret and produce texts expressive of the human condition.
-    - Social Sciences: Apply knowledge and the methods of inquiry characteristic of the social sciences to explain and evaluate human behavior and institutions.
-    
-    PROCESS:
-    1. Analyze the provided Design Document for an ${courseContext} course that lasts ${courseLength}.
-    2. Extract or Generate Module Objectives. Guidance on location: ${objectiveLocation || "Found under 'Module Introduction' sections"}.
-       - For each module: If module learning objectives are explicitly found, extract them and set isGenerated to false.
-       - If module learning objectives are NOT found for a module: Generate 1-2 draft objectives based on the module's content, topics, and alignment with the provided CLOs. Use measurable action verbs (Bloom's Taxonomy), ensure learner-centered perspective, and follow QM+ Standards. Set isGenerated to true for generated objectives.
-    3. Identify the module name (e.g., "Module 1", "Week 1") for each objective.
-    4. Identify and list related course items (Readings, Multimedia, Quizzes, Assignments, Discussions) for each objective.
-    5. Map these MLOs and items to the Course Learning Objectives (CLOs) provided.
-    6. Evaluate which Boise State ULOs are addressed by the course content, objectives, and assessments. For EACH ULO listed above, determine if it is "Addressed" or "Not Addressed" and provide a brief justification (Reasoning).
-    7. Identify any Program Learning Objectives (PLOs) mentioned in the document.
-    8. Evaluate the course content against QM 2.1 through 2.5 based on the guidance above.
-    9. STRICTLY EXCLUDE content from modules or sections matching: ${exclusions || "Instructor Resources, Student Resources, and Getting Started modules. Also exclude any unpublished course content."}.
-    10. For each CLO, provide "Findings" and "Recommendations".
-    
-    OUTPUT FORMAT:
-    Return a JSON object matching the requested schema. Use the Course identification: ${courseInfo || "DEPT ###: Course Title"}.
-    
-    The JSON must include:
-    - executiveSummary: A high-level overview of the alignment state.
-    - plos: An array of strings, each being a Program Learning Objective.
-    - clos: An array of strings, each being a Course Learning Objective.
-    - mlosByModule: An array of objects, each containing a moduleName, an array of objectives (MLOs), and an isGenerated boolean flag (true if objectives were AI-generated, false/omitted if extracted).
-    - qmFeedback: Feedback for QM standards 2.1 through 2.5.
-    - cloMappings: Alignment organized by CLOs. For each CLO, list relevant module objectives and items, findings, and recommendations.
-    - moduleMappings: Alignment organized by Modules. For each module, list relevant CLOs, MLOs, findings, and recommendations.
-  `;
+  objectiveLocation: string,
+  exclusions: string,
+  apiKey: string
+): Promise<ExtractedDocumentStructure> => {
+  const ai = new GoogleGenAI({ apiKey });
 
-  const prompt = `
-    COURSE INFO: ${courseInfo || 'N/A'}
-    COURSE LENGTH: ${courseLength}
-    CLOs: ${clos}
-    ${plos ? `PLOs: ${plos}` : ''}
-    ${ulos ? `ULOs: ${ulos}` : ''}
-    DESIGN DOC: ${documentContent}
-    CONTEXT: ${courseContext}
-    ${additionalInfo ? `ADDITIONAL INFO: ${additionalInfo}` : ''}
+  const systemInstruction = `
+You are an expert instructional designer specializing in document structure extraction.
+Your task is to extract ONLY the essential structure from the course design document.
+
+EXTRACT AND RETURN:
+1. Course Title
+2. List of all modules/units with:
+   - Module name
+   - Any existing module-level objectives (if found at: ${objectiveLocation})
+   - Course items (Readings, Multimedia, Quizzes, Assignments, Discussions)
+   - Brief summary of module content
+3. Program Learning Objectives (if mentioned)
+
+IMPORTANT:
+- EXCLUDE: ${exclusions}
+- Focus on structure and content organization, NOT alignment analysis
+- Keep descriptions brief and focused
+- Output ONLY valid JSON, no additional text
   `;
 
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",
-    contents: prompt,
+    contents: `Extract document structure:\n\n${documentContent.substring(0, 25000)}`,
     config: {
       systemInstruction,
       responseMimeType: "application/json",
@@ -141,8 +107,236 @@ export const generateDesignMap = async (
         type: Type.OBJECT,
         properties: {
           courseTitle: { type: Type.STRING },
-          courseLength: { type: Type.STRING },
-          executiveSummary: { type: Type.STRING },
+          modules: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                moduleName: { type: Type.STRING },
+                objectives: { type: Type.ARRAY, items: { type: Type.STRING } },
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      type: { type: Type.STRING, enum: ['Reading', 'Multimedia', 'Quiz', 'Assignment', 'Discussion', 'Other'] },
+                      title: { type: Type.STRING }
+                    },
+                    required: ["type", "title"]
+                  }
+                },
+                summary: { type: Type.STRING }
+              },
+              required: ["moduleName", "items", "summary"]
+            }
+          },
+          plos: { type: Type.ARRAY, items: { type: Type.STRING } }
+        },
+        required: ["courseTitle", "modules", "plos"]
+      }
+    }
+  });
+
+  if (!response.text) throw new Error("Document extraction failed");
+  return JSON.parse(response.text) as ExtractedDocumentStructure;
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STEP 2: Generate MLOs and QM Feedback (uses extracted JSON, not full document)
+// Uses: Gemini 3.1 Flash-Lite (faster, cheaper, sufficient for structured data)
+// ══════════════════════════════════════════════════════════════════════════════
+interface MLOsAndFeedback {
+  mlosByModule: Array<{
+    moduleName: string;
+    objectives: string[];
+    isGenerated: boolean;
+  }>;
+  qmFeedback: {
+    qm2_1: string;
+    qm2_2: string;
+    qm2_3: string;
+    qm2_4: string;
+    qm2_5: string;
+  };
+  executiveSummary: string;
+}
+
+const generateMLOsAndFeedback = async (
+  extracted: ExtractedDocumentStructure,
+  clos: string,
+  courseContext: string,
+  courseLength: string,
+  apiKey: string
+): Promise<MLOsAndFeedback> => {
+  const ai = new GoogleGenAI({ apiKey });
+
+  const systemInstruction = `
+You are an expert instructional designer evaluating Course Learning Objectives against QM+ Standards.
+
+TASK:
+1. For each module in the extracted document:
+   - If objectives exist, mark as extracted (isGenerated: false)
+   - If NO objectives exist, generate 1-2 measurable objectives using Bloom's Taxonomy verbs
+   - Mark generated objectives (isGenerated: true)
+
+2. Evaluate the course against QM 2.1-2.5 Standards based on the module structure, objectives, and items provided
+
+KEEP RESPONSES BRIEF BUT SUBSTANTIVE.
+Output ONLY valid JSON, no additional text.
+  `;
+
+  const modulesText = extracted.modules
+    .map(m => `${m.moduleName}: ${m.summary}\nItems: ${m.items.map(i => i.title).join('; ')}\nExtracted objectives: ${m.objectives?.join('; ') || 'None found'}`)
+    .join('\n\n');
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.1-flash-lite-preview",
+    contents: `
+Course Context: ${courseContext} (${courseLength})
+CLOs: ${clos}
+
+Module Structure:
+${modulesText}
+
+Generate MLOs and provide QM feedback.
+    `,
+    config: {
+      systemInstruction,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          mlosByModule: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                moduleName: { type: Type.STRING },
+                objectives: { type: Type.ARRAY, items: { type: Type.STRING } },
+                isGenerated: { type: Type.BOOLEAN }
+              },
+              required: ["moduleName", "objectives", "isGenerated"]
+            }
+          },
+          qmFeedback: {
+            type: Type.OBJECT,
+            properties: {
+              qm2_1: { type: Type.STRING },
+              qm2_2: { type: Type.STRING },
+              qm2_3: { type: Type.STRING },
+              qm2_4: { type: Type.STRING },
+              qm2_5: { type: Type.STRING }
+            },
+            required: ["qm2_1", "qm2_2", "qm2_3", "qm2_4", "qm2_5"]
+          },
+          executiveSummary: { type: Type.STRING }
+        },
+        required: ["mlosByModule", "qmFeedback", "executiveSummary"]
+      }
+    }
+  });
+
+  if (!response.text) throw new Error("MLO and feedback generation failed");
+  return JSON.parse(response.text) as MLOsAndFeedback;
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STEP 3: Create alignment mappings (uses extracted JSON + objectives, not full doc)
+// Uses: Gemini 3.1 Flash-Lite (sufficient for mapping already-structured data)
+// ══════════════════════════════════════════════════════════════════════════════
+interface AlignmentResult {
+  ulos: Array<{ id: string; name: string; category: 'Interdisciplinary' | 'Disciplinary'; addressed: boolean; reasoning: string }>;
+  clos: string[];
+  cloMappings: Array<{
+    clo: string;
+    alignedModules: Array<{
+      moduleName: string;
+      objective: string;
+      items: Array<{ type: string; title: string }>;
+    }>;
+    findings: string;
+    recommendations: string;
+  }>;
+  moduleMappings: Array<{
+    moduleName: string;
+    relevantCLOs: string[];
+    relevantMLOs: string[];
+    findings: string;
+    recommendations: string;
+  }>;
+}
+
+const createAlignmentMappings = async (
+  extracted: ExtractedDocumentStructure,
+  mlos: Array<{ moduleName: string; objectives: string[] }>,
+  clos: string,
+  plos: string | undefined,
+  ulos: string | undefined,
+  courseContext: string,
+  courseLength: string,
+  courseInfo: string,
+  apiKey: string
+): Promise<AlignmentResult> => {
+  const ai = new GoogleGenAI({ apiKey });
+
+  const bsuULOs = `
+- Written Communication: Write effectively in multiple contexts
+- Oral Communication: Communicate effectively in speech
+- Critical Inquiry: Engage in effective critical inquiry
+- Ethics: Analyze ethical issues in personal, professional, and civic life
+- Mathematical Reasoning: Apply mathematical knowledge
+- Natural, Physical, and Applied Sciences: Apply scientific inquiry
+- Visual and Performing Arts: Apply knowledge of visual and performing arts
+- Humanities: Apply knowledge of humanities disciplines
+- Social Sciences: Apply knowledge of social sciences
+  `;
+
+  const systemInstruction = `
+You are an expert instructional design specialist. Your task is to map course objectives to learning outcomes.
+
+BASED ON THE PROVIDED EXTRACTED STRUCTURE:
+1. Map each CLO to relevant modules and objectives
+2. Identify which University Learning Objectives (ULOs) are addressed
+3. Provide findings and recommendations for each CLO and module
+
+For each ULO, determine if it's addressed and provide brief reasoning.
+Keep findings and recommendations concise but substantive.
+
+Output ONLY valid JSON, no additional text.
+  `;
+
+  const mloText = mlos.map(m => `${m.moduleName}: ${m.objectives.join('; ')}`).join('\n');
+  const moduleSummaries = extracted.modules.map(m => `${m.moduleName}: ${m.items.map(i => `[${i.type}] ${i.title}`).join('; ')}`).join('\n');
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.1-flash-lite-preview",
+    contents: `
+Course: ${courseInfo || 'N/A'} (${courseContext}, ${courseLength})
+
+CLOs:
+${clos}
+
+${plos ? `PLOs:\n${plos}\n` : ''}
+
+Module Learning Objectives:
+${mloText}
+
+Module Items:
+${moduleSummaries}
+
+BSU University Learning Objectives:
+${bsuULOs}
+
+${ulos ? `User-provided ULOs:\n${ulos}\n` : ''}
+
+Create complete alignment mappings.
+    `,
+    config: {
+      systemInstruction,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
           ulos: {
             type: Type.ARRAY,
             items: {
@@ -157,31 +351,7 @@ export const generateDesignMap = async (
               required: ["id", "name", "category", "addressed", "reasoning"]
             }
           },
-          plos: { type: Type.ARRAY, items: { type: Type.STRING } },
           clos: { type: Type.ARRAY, items: { type: Type.STRING } },
-          mlosByModule: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                moduleName: { type: Type.STRING },
-                objectives: { type: Type.ARRAY, items: { type: Type.STRING } },
-                isGenerated: { type: Type.BOOLEAN }
-              },
-              required: ["moduleName", "objectives"]
-            }
-          },
-          qmFeedback: {
-            type: Type.OBJECT,
-            properties: {
-              qm2_1: { type: Type.STRING },
-              qm2_2: { type: Type.STRING },
-              qm2_3: { type: Type.STRING },
-              qm2_4: { type: Type.STRING },
-              qm2_5: { type: Type.STRING }
-            },
-            required: ["qm2_1", "qm2_2", "qm2_3", "qm2_4", "qm2_5"]
-          },
           cloMappings: {
             type: Type.ARRAY,
             items: {
@@ -231,11 +401,96 @@ export const generateDesignMap = async (
             }
           }
         },
-        required: ["courseTitle", "courseLength", "executiveSummary", "ulos", "plos", "clos", "mlosByModule", "qmFeedback", "cloMappings", "moduleMappings"]
+        required: ["ulos", "clos", "cloMappings", "moduleMappings"]
       }
     }
   });
 
-  if (!response.text) throw new Error("No response generated.");
-  return JSON.parse(response.text) as DesignMap;
+  if (!response.text) throw new Error("Alignment mapping creation failed");
+  return JSON.parse(response.text) as AlignmentResult;
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PUBLIC API: generateDesignMap (3-step distillation internally)
+// ══════════════════════════════════════════════════════════════════════════════
+export const generateDesignMap = async (
+  clos: string,
+  documentContent: string,
+  courseContext: string,
+  courseLength: string,
+  plos?: string,
+  ulos?: string,
+  exclusions?: string,
+  objectiveLocation?: string,
+  courseInfo?: string,
+  additionalInfo?: string,
+  apiKey?: string
+): Promise<DesignMap> => {
+  const activeKey = apiKey || process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (!activeKey) {
+    throw new Error("No Gemini API key provided. Please set your key in Settings.");
+  }
+
+  try {
+    // STEP 1: Extract document structure (Pro model - best for complex extraction)
+    const extracted = await extractDocumentStructure(
+      documentContent,
+      courseInfo || "N/A",
+      courseContext,
+      courseLength,
+      objectiveLocation || "Module Introduction sections",
+      exclusions || "Instructor Resources, Student Resources, and Getting Started modules",
+      activeKey
+    );
+
+    // STEP 2: Generate MLOs and QM Feedback (Flash-Lite on extracted JSON)
+    const mlosAndFeedback = await generateMLOsAndFeedback(
+      extracted,
+      clos,
+      courseContext,
+      courseLength,
+      activeKey
+    );
+
+    // STEP 3: Create alignment mappings (Flash-Lite on extracted JSON + objectives)
+    const alignment = await createAlignmentMappings(
+      extracted,
+      mlosAndFeedback.mlosByModule,
+      clos,
+      plos,
+      ulos,
+      courseContext,
+      courseLength,
+      courseInfo || "N/A",
+      activeKey
+    );
+
+    // Combine all results into final DesignMap
+    const result: DesignMap = {
+      courseTitle: extracted.courseTitle,
+      courseLength,
+      executiveSummary: mlosAndFeedback.executiveSummary,
+      ulos: alignment.ulos,
+      plos: extracted.plos || (plos ? plos.split('\n').filter(p => p.trim()) : []),
+      clos: alignment.clos,
+      mlosByModule: mlosAndFeedback.mlosByModule,
+      qmFeedback: mlosAndFeedback.qmFeedback,
+      cloMappings: alignment.cloMappings.map(mapping => ({
+        ...mapping,
+        alignedModules: mapping.alignedModules.map(mo => ({
+          ...mo,
+          items: mo.items.map(item => ({
+            type: item.type as 'Reading' | 'Multimedia' | 'Quiz' | 'Assignment' | 'Discussion' | 'Other',
+            title: item.title
+          }))
+        }))
+      })),
+      moduleMappings: alignment.moduleMappings
+    };
+
+    return result;
+  } catch (error: any) {
+    console.error("Design map generation error:", error);
+    throw new Error(`Failed to generate design map: ${error.message || 'Unknown error'}`);
+  }
 };
