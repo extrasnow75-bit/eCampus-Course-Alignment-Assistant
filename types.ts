@@ -36,6 +36,7 @@ export interface ULOStatus {
 export interface ModuleMLOs {
   moduleName: string;
   objectives: string[];
+  isGenerated?: boolean;
 }
 
 export interface ModuleMapping {

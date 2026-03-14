@@ -35,6 +35,7 @@ const App: React.FC = () => {
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isUseCasesOpen, setIsUseCasesOpen] = useState(false);
   const [isSetupOpen, setIsSetupOpen] = useState(!localStorage.getItem('gemini_api_key'));
+  const [isDisclaimerChecked, setIsDisclaimerChecked] = useState(false);
   const [geminiKeyInput, setGeminiKeyInput] = useState('');
   const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
   const [user, setUser] = useState<{ access_token: string; expires_at?: number } | null>(null);
@@ -326,17 +327,88 @@ const App: React.FC = () => {
         </div>
       </header>
 
+      {/* White Ribbon Bar */}
+      <div className="bg-white border-b border-gray-200 py-3 px-8 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-black text-gray-400 uppercase tracking-widest">
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+            Course Alignment Report Generator
+          </div>
+
+          {/* Help Center Dropdown in Ribbon */}
+          <div className="relative">
+            <button
+              onClick={() => setIsHelpOpen(!isHelpOpen)}
+              className="flex items-center gap-2 px-4 py-2 text-[#0033A0] hover:bg-slate-50 rounded-lg transition-colors outline-none font-semibold text-sm"
+            >
+              <svg className="w-5 h-5 shrink-0 text-[#0033A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <span>Help Center & More</span>
+              <svg
+                className={`w-4 h-4 text-[#0033A0] transition-transform duration-300 ${isHelpOpen ? 'rotate-180' : ''}`}
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </button>
+
+            {/* Dropdown Menu */}
+            {isHelpOpen && (
+              <div className="absolute right-0 mt-1 w-96 bg-white border border-slate-200 rounded-xl shadow-lg z-50 animate-in slide-in-from-top-2 duration-200">
+                <div className="p-4 flex flex-col gap-3">
+                  <a
+                    href="https://docs.google.com/document/d/1g4WLYmFsdiXvBi0LPZPCMgv6SwnhTBxzh7dLmMt0O40/edit?tab=t.0"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 text-blue-700 font-semibold transition-colors text-sm group"
+                  >
+                    <svg className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    How to use this app
+                  </a>
+                  <a
+                    href="https://drive.google.com/drive/folders/1FReC8oz-JKMDiI1HNwqKcFMfDektxsAw"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 text-blue-700 font-semibold transition-colors text-sm group"
+                  >
+                    <svg className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    Training Documents
+                  </a>
+                  <a
+                    href="https://boisestateecampus.atlassian.net/wiki/spaces/EKB/pages/3503652868/The+eCampus+Content+Export+Tool+Canvas+to+Google+Doc"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 text-blue-700 font-semibold transition-colors text-sm group"
+                  >
+                    <svg className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    Companion App
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <main className="max-w-7xl mx-auto px-4 mt-10">
+
+        {/* Instruction Box */}
+        <div className="mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center animate-in fade-in slide-in-from-top-4 duration-500">
+          <p className="text-xl font-medium text-slate-700">
+            Fill out the form below to generate an objective alignment report for a specific course. The report will be based on Boise State University's QM+ Standards.
+          </p>
+        </div>
 
         {/* Initial Setup Panel */}
         <div className="mb-8 rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
           <button
             onClick={() => setIsSetupOpen(!isSetupOpen)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-[#D64309] text-white hover:bg-[#b83908] transition-colors text-left"
+            className="w-full flex items-center justify-between px-4 py-3 bg-[#0033a0] text-white hover:bg-[#002580] transition-colors text-left"
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow flex-shrink-0">
-                <Settings2 className="w-5 h-5 text-orange-600" />
+                <Settings2 className="w-5 h-5 text-blue-600" />
               </div>
               <span className="font-black text-white text-lg">Initial Setup</span>
             </div>
@@ -351,13 +423,13 @@ const App: React.FC = () => {
           </button>
 
           {isSetupOpen && (
-            <div className="bg-slate-50 p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-slate-50 p-5 grid grid-cols-1 gap-4">
 
               {/* Gemini API Key Card */}
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Key className="w-5 h-5 text-orange-500" />
-                  <h3 className="font-bold text-slate-800 text-base">Gemini API Key</h3>
+                  <h3 className="font-bold text-[#0033A0] text-base">Gemini API Key</h3>
                 </div>
                 {apiKey ? (
                   <>
@@ -414,9 +486,33 @@ const App: React.FC = () => {
                 )}
               </div>
 
+              {/* Disclaimer Card */}
+              <div className="bg-white border border-blue-200 rounded-xl p-5 shadow-sm space-y-3">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 shrink-0 text-[#0033A0] mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-[#0033A0] text-sm mb-2">Disclaimer: Alignment Needs To Be Verified</h3>
+                    <div className="text-black text-xs leading-relaxed space-y-2">
+                      <p>Treat the AI-generated report as a draft, not a final product. Course design maps and other types of alignment documents are usually the result of collaboration between an instructional design consultant and a faculty developer. This process is not meant to replace that; instead it should serve as a first draft or a next-best option.</p>
+                      <p>After getting the draft design map, carefully check it yourself against the course content, use your best judgement to make edits, and then verify the alignment with the Faculty Developer (FD), Instructor of Record (IoR), or whomever has the qualifications or authority to approve the accuracy of the draft map.</p>
+                      <p className="font-extrabold">Again, treat the AI-generated report as a draft, not a final product.</p>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer select-none mt-3 pt-3 border-t border-blue-100">
+                      <input
+                        type="checkbox"
+                        checked={isDisclaimerChecked}
+                        onChange={(e) => setIsDisclaimerChecked(e.target.checked)}
+                        className="w-4 h-4 accent-blue-600 cursor-pointer rounded"
+                      />
+                      <span className="text-xs font-bold text-[#0033A0]">I understand and agree — show me the form</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               {/* Google Sign In Card */}
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-sm">
-                <h3 className="font-bold text-slate-800 text-base">Optional</h3>
+                <h3 className="font-bold text-[#0033A0] text-base">Optional</h3>
                 <p className="text-sm text-slate-600">Log in to load design documents directly from Google Drive. Otherwise, upload a file or paste content manually.</p>
                 {user ? (
                   <div className="space-y-3">
@@ -452,123 +548,15 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Instruction Box */}
-        <div className="mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center animate-in fade-in slide-in-from-top-4 duration-500">
-          <p className="text-xl font-medium text-slate-700">
-            Fill out the form below to generate an objective alignment report for a specific course. The report will be based on Boise State University's QM+ Standards.
-          </p>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-          {/* Help Center & Training Documents Accordion */}
-          <section>
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden transition-all duration-300">
-              <button 
-                onClick={() => setIsHelpOpen(!isHelpOpen)}
-                className="w-full flex items-center justify-between p-6 bg-white hover:bg-slate-50 transition-colors text-left outline-none"
-              >
-                <span className="font-bold text-[#0033A0] text-lg flex items-center gap-3">
-                  <svg className="w-6 h-6 shrink-0 text-[#0033A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                  Help Center & Training Documents
-                </span>
-                <svg 
-                  className={`w-6 h-6 text-[#0033A0] transition-transform duration-300 ${isHelpOpen ? 'rotate-180' : ''}`} 
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </button>
-              {isHelpOpen && (
-                <div className="p-5 bg-white border-t border-slate-100 animate-in slide-in-from-top-4 duration-300">
-                  <div className="flex flex-col gap-3">
-                    <a 
-                      href="https://docs.google.com/document/d/1g4WLYmFsdiXvBi0LPZPCMgv6SwnhTBxzh7dLmMt0O40/edit?tab=t.0" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="flex items-center gap-3 p-4 rounded-xl hover:bg-blue-50 text-blue-700 text-lg font-semibold transition-colors group"
-                    >
-                      <svg className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                      How to use this app
-                    </a>
-                    <a 
-                      href="https://drive.google.com/drive/folders/1FReC8oz-JKMDiI1HNwqKcFMfDektxsAw" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="flex items-center gap-3 p-4 rounded-xl hover:bg-blue-50 text-blue-700 text-lg font-semibold transition-colors group"
-                    >
-                      <svg className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                      </svg>
-                      Training Documents
-                    </a>
-                    <a 
-                      href="https://boisestateecampus.atlassian.net/wiki/spaces/EKB/pages/3503652868/The+eCampus+Content+Export+Tool+Canvas+to+Google+Doc" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="flex items-center gap-3 p-4 rounded-xl hover:bg-blue-50 text-blue-700 text-lg font-semibold transition-colors group"
-                    >
-                      <svg className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                      Companion App: The eCampus Content Export Tool
-                    </a>
-                    <div className="mt-2 border border-blue-100 rounded-xl overflow-hidden bg-slate-50">
-                      <button onClick={() => setIsUseCasesOpen(!isUseCasesOpen)} className="w-full flex items-center justify-between p-4 hover:bg-blue-50 transition-colors text-left outline-none group">
-                        <span className="font-bold text-blue-700 text-lg flex items-center gap-3">
-                          <svg className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-                          Possible Use Cases
-                        </span>
-                        <svg className={`w-5 h-5 text-blue-400 transition-transform duration-300 ${isUseCasesOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                      </button>
-                      {isUseCasesOpen && (
-                        <div className="p-5 bg-white border-t border-blue-100 animate-in slide-in-from-top-2 duration-300">
-                          <ul className="list-disc ml-8 space-y-3 text-slate-600 text-base leading-relaxed">
-                            <li>A course redesign project in which course content has significantly changed over time but the alignment table/course map has not been updated;</li>
-                            <li>A faculty-owned course which the instructor has taught before but is now bringing to eCampus;</li>
-                            <li>A QM Review assignment with a course that lacks a course design map;</li>
-                            <li>A CDD project in which the FD has suggested some activities but not aligned them with objectives.</li>
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-2 p-4 rounded-xl border border-blue-100 bg-slate-50">
-                      <p className="font-bold text-blue-700 text-base flex items-center gap-2 mb-2">
-                        <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                        AI Models Used
-                      </p>
-                      <ul className="space-y-1 text-slate-600 text-sm ml-7">
-                        <li><span className="font-semibold text-slate-700">Document scan:</span> gemini-3-flash-preview</li>
-                        <li><span className="font-semibold text-slate-700">Full alignment analysis:</span> gemini-3.1-pro-preview</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
+        {!isDisclaimerChecked && (
+          <div className="mb-6 p-5 bg-amber-50 border border-amber-200 rounded-2xl text-black text-base font-medium flex items-center gap-3">
+            <svg className="w-5 h-5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            Please read and acknowledge the <button onClick={() => setIsAccordionOpen(true)} className="underline font-bold text-black hover:text-gray-700">Disclaimer</button> above to unlock the form.
+          </div>
+        )}
 
-          <section>
-            <div className="bg-white rounded-2xl border border-blue-200 shadow-md overflow-hidden transition-all duration-300">
-              <button 
-                onClick={() => setIsAccordionOpen(!isAccordionOpen)}
-                className="w-full flex items-center justify-between p-6 bg-white hover:bg-slate-50 transition-colors text-left outline-none group"
-              >
-                <span className="font-bold text-[#0033A0] text-lg flex items-center gap-3">
-                  <svg className="w-6 h-6 shrink-0 text-[#0033A0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                  Disclaimer: Alignment Needs To Be Verified
-                </span>
-                <svg className={`w-6 h-6 text-[#0033A0] transition-transform duration-300 ${isAccordionOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-              </button>
-              {isAccordionOpen && (
-                <div className="p-8 text-[#0033A0] text-lg leading-relaxed bg-white border-t border-blue-100 animate-in slide-in-from-top-4 duration-300">
-                  <p className="mb-4">Treat the AI-generated report as a draft, not a final product. Course design maps and other types of alignment documents are usually the result of collaboration between an instructional design consultant and a faculty developer. This process is not meant to replace that; instead it should serve as a first draft or a next-best option.</p>
-                  <p className="mb-4">After getting the draft design map, carefully check it yourself against the course content, use your best judgement to make edits, and then verify the alignment with the Faculty Developer (FD), Instructor of Record (IoR), or whomever has the qualifications or authority to approve the accuracy of the draft map.</p>
-                  <p className="font-extrabold">Again, treat the AI-generated report as a draft, not a final product.</p>
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-xl p-10 border border-slate-200">
+        {isDisclaimerChecked && <div className="bg-white rounded-2xl shadow-xl p-10 border border-slate-200">
           <div className="space-y-12">
             {/* Essentials Section */}
             <section className="space-y-8">
@@ -609,7 +597,7 @@ const App: React.FC = () => {
                       </label>
                       <button 
                         onClick={handleDrivePicker}
-                        className="text-xs font-bold text-emerald-600 cursor-pointer hover:bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-100 transition-all flex items-center gap-2 shadow-sm"
+                        className="text-xs font-bold text-blue-600 cursor-pointer hover:bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 transition-all flex items-center gap-2 shadow-sm"
                       >
                         <svg className="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor"><path d="M220-100q-17 0-34.5-10.5T160-135L60-310q-8-14-8-34.5t8-34.5l260-446q8-14 25.5-24.5T380-860h200q17 0 34.5 10.5T640-825l182 312q-23-6-47.5-8t-48.5 2L574-780H386L132-344l94 164h316q11 23 25.5 43t33.5 37H220Zm70-180-29-51 183-319h72l101 176q-17 13-31.5 28.5T560-413l-80-139-110 192h164q-7 19-10.5 39t-3.5 41H290Zm430 160v-120H600v-80h120v-120h80v120h120v80H800v120h-80Z"/></svg>
                         Drive
@@ -689,7 +677,7 @@ const App: React.FC = () => {
             </button>
             <p className="mt-6 text-slate-400 text-sm text-center italic max-w-lg">AI maps content using Bloom's Taxonomy and Backward Design principles based on QM+ standards.</p>
           </div>
-        </div>
+        </div>}
       </main>
     </div>
   );

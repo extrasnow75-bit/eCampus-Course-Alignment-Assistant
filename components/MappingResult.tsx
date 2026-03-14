@@ -2,7 +2,7 @@
 import React from 'react';
 import { DesignMap, CLOMapping, ModuleMapping, ModuleMLOs, CourseItem } from '../types';
 import {
-  Document, Packer, Paragraph, TextRun, AlignmentType,
+  Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, LevelFormat,
   Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType,
 } from 'docx';
 
@@ -24,74 +24,99 @@ const ItemIcon = ({ type }: { type: string }) => {
 
 export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
   const downloadWord = async () => {
-    const docChildren: any[] = [];
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     const BLUE = '0033A0';
+    const ORANGE = 'D64309';
     const GRAY = '666666';
     const WHITE = 'FFFFFF';
+    const FONT = 'Times New Roman';
 
-    const sectionTitle = (text: string, pageBreak = false) => new Paragraph({
-      children: [new TextRun({ text, bold: true, size: 28, color: BLUE })],
-      spacing: { before: 400, after: 200 },
+    // ── Helpers ────────────────────────────────────────────────────
+    const body = (text: string, opts: Record<string, any> = {}) =>
+      new TextRun({ text, font: FONT, size: 24, ...opts });
+
+    const h1 = (text: string, pageBreak = false) => new Paragraph({
+      heading: HeadingLevel.HEADING_1,
       pageBreakBefore: pageBreak,
+      children: [new TextRun({ text, font: FONT })],
     });
 
-    const subSectionTitle = (text: string) => new Paragraph({
-      children: [new TextRun({ text, bold: true, size: 24, color: BLUE })],
-      spacing: { before: 300, after: 100 },
+    const h2 = (text: string) => new Paragraph({
+      heading: HeadingLevel.HEADING_2,
+      children: [new TextRun({ text, font: FONT })],
     });
+
+    const h3 = (text: string) => new Paragraph({
+      heading: HeadingLevel.HEADING_3,
+      children: [new TextRun({ text })],
+    });
+
+    const docChildren: any[] = [];
 
     // ── COVER PAGE ────────────────────────────────────────────────
     docChildren.push(
+      new Paragraph({ children: [], spacing: { before: 1440, after: 0 } }),
       new Paragraph({
-        children: [new TextRun({ text: 'COURSE ALIGNMENT REPORT', bold: true, size: 56, color: BLUE })],
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 2880, after: 600 },
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: 'Course Name: ', bold: true, size: 26 }),
-          new TextRun({ text: data.courseTitle, size: 26 }),
-        ],
         alignment: AlignmentType.CENTER,
         spacing: { after: 200 },
+        children: [new TextRun({ text: 'COURSE ALIGNMENT REPORT', font: FONT, bold: true, size: 56, color: BLUE })],
       }),
+      // Orange horizontal rule
       new Paragraph({
-        children: [
-          new TextRun({ text: 'Prepared By: ', bold: true, size: 24 }),
-          new TextRun({ text: '[Instructional Design Consultant] & [Faculty Developer Name]', size: 24, italics: true, color: GRAY }),
-        ],
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: ORANGE, space: 1 } },
+        spacing: { after: 600 },
+        children: [],
+      }),
+      // Course Name
+      new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 200 },
+        spacing: { after: 80 },
+        children: [new TextRun({ text: 'Course Name:', font: FONT, bold: true, color: BLUE, size: 24 })],
       }),
       new Paragraph({
-        children: [
-          new TextRun({ text: 'Date: ', bold: true, size: 24 }),
-          new TextRun({ text: today, size: 24 }),
-        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 240 },
+        children: [new TextRun({ text: data.courseTitle, font: FONT, color: '000000', size: 24 })],
+      }),
+      // Prepared By
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 80 },
+        children: [new TextRun({ text: 'Prepared By:', font: FONT, bold: true, color: BLUE, size: 24 })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 240 },
+        children: [new TextRun({ text: '[Instructional Design Consultant] & [Faculty Developer Name]', font: FONT, color: '000000', size: 24, italics: true })],
+      }),
+      // Date
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 80 },
+        children: [new TextRun({ text: 'Date:', font: FONT, bold: true, color: BLUE, size: 24 })],
+      }),
+      new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 600 },
+        children: [new TextRun({ text: today, font: FONT, color: '000000', size: 24 })],
+      }),
+      // Institution footer on cover
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        border: { top: { style: BorderStyle.SINGLE, size: 4, color: 'CCCCCC', space: 8 } },
+        spacing: { after: 60 },
+        children: [new TextRun({ text: 'Boise State University', font: FONT, bold: true, color: BLUE, size: 22 })],
       }),
       new Paragraph({
-        children: [new TextRun({ text: 'Boise State University', bold: true, size: 24, color: BLUE })],
         alignment: AlignmentType.CENTER,
-        spacing: { after: 100 },
-      }),
-      new Paragraph({
-        children: [new TextRun({ text: 'eCampus Center', bold: true, size: 24, color: BLUE })],
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 0 },
+        children: [new TextRun({ text: 'eCampus Center', font: FONT, color: '000000', size: 24 })],
       }),
       new Paragraph({ pageBreakBefore: true, children: [] }),
     );
 
     // ── TABLE OF CONTENTS ─────────────────────────────────────────
     docChildren.push(
-      new Paragraph({
-        children: [new TextRun({ text: 'Table of Contents', bold: true, size: 32, color: BLUE })],
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 200, after: 300 },
-      }),
+      h1('Table of Contents'),
       ...[
         '1. Executive Summary',
         '2. University Learning Objectives (ULOs)',
@@ -104,109 +129,106 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
         '7. Feedback on Objectives (QM General Standard 2)',
         '8. Alignment Organized by CLOs',
         '9. Alignment Organized by Modules',
-      ].map(item => new Paragraph({
-        children: [new TextRun({ text: item, size: 22 })],
-        spacing: { after: 60 },
-      })),
+      ].map(item => new Paragraph({ children: [body(item)], spacing: { after: 60 } })),
       new Paragraph({ pageBreakBefore: true, children: [] }),
     );
 
     // ── 1. EXECUTIVE SUMMARY ──────────────────────────────────────
     docChildren.push(
-      sectionTitle('1. Executive Summary'),
-      new Paragraph({ text: data.executiveSummary, spacing: { after: 400 } }),
+      h1('1. Executive Summary'),
+      new Paragraph({
+        children: [body(data.executiveSummary)],
+        border: { left: { style: BorderStyle.SINGLE, size: 8, color: ORANGE, space: 4 } },
+        shading: { fill: 'F5F5F5', type: ShadingType.CLEAR },
+        spacing: { before: 80, after: 80 },
+      }),
+      new Paragraph({ spacing: { after: 200 }, children: [] }),
     );
 
     // ── 2. ULOs ───────────────────────────────────────────────────
-    docChildren.push(sectionTitle('2. University Learning Objectives (ULOs)'));
+    docChildren.push(h1('2. University Learning Objectives (ULOs)'));
 
     const interdisciplinary = data.ulos.filter(u => u.category === 'Interdisciplinary');
     const disciplinary = data.ulos.filter(u => u.category === 'Disciplinary');
 
     if (interdisciplinary.length > 0) {
-      docChildren.push(subSectionTitle('2.1 Interdisciplinary ULOs'));
+      docChildren.push(h2('2.1 Interdisciplinary ULOs'));
       interdisciplinary.forEach(u => {
         docChildren.push(new Paragraph({
           children: [
-            new TextRun({ text: u.addressed ? '☑ ' : '☐ ', bold: true }),
-            new TextRun({ text: `${u.name} — `, bold: true }),
-            new TextRun({ text: u.reasoning, italics: true }),
+            body(`${u.name}`, { bold: true }),
+            body(` \u2014 `),
+            body(u.reasoning, { italics: !u.addressed, color: u.addressed ? undefined : GRAY }),
           ],
-          spacing: { after: 100 },
+          numbering: { reference: 'ulo-interdisciplinary', level: 0 },
+          spacing: { after: 80 },
         }));
       });
     }
 
     if (disciplinary.length > 0) {
-      docChildren.push(subSectionTitle('2.2 Disciplinary ULOs'));
+      docChildren.push(h2('2.2 Disciplinary ULOs'));
       disciplinary.forEach(u => {
         docChildren.push(new Paragraph({
           children: [
-            new TextRun({ text: u.addressed ? '☑ ' : '☐ ', bold: true }),
-            new TextRun({ text: `${u.name} — `, bold: true }),
-            new TextRun({ text: u.reasoning, italics: true }),
+            body(`${u.name}`, { bold: true }),
+            body(` \u2014 `),
+            body(u.reasoning, { italics: !u.addressed, color: u.addressed ? undefined : GRAY }),
           ],
-          spacing: { after: 100 },
+          numbering: { reference: 'ulo-disciplinary', level: 0 },
+          spacing: { after: 80 },
         }));
       });
     }
 
     docChildren.push(new Paragraph({
-      children: [new TextRun({ text: 'Source: Boise State University – University Learning Outcomes', size: 18, italics: true, color: GRAY })],
+      children: [body('Source: Boise State University \u2013 University Learning Outcomes', { size: 18, italics: true, color: GRAY })],
       spacing: { before: 100, after: 400 },
     }));
 
     // ── 3. PLOs ───────────────────────────────────────────────────
     if (data.plos && data.plos.length > 0) {
-      docChildren.push(sectionTitle('3. Program Learning Objectives (PLOs)'));
+      docChildren.push(h1('3. Program Learning Objectives (PLOs)'));
       data.plos.forEach((plo, i) => {
         docChildren.push(new Paragraph({
-          children: [
-            new TextRun({ text: `PLO#${i + 1}: `, bold: true }),
-            new TextRun({ text: plo }),
-          ],
+          children: [body(`PLO#${i + 1}: `, { bold: true }), body(plo)],
           spacing: { after: 100 },
         }));
       });
-      docChildren.push(new Paragraph({ spacing: { after: 200 } }));
+      docChildren.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
     }
 
     // ── 4. CLOs ───────────────────────────────────────────────────
-    docChildren.push(sectionTitle('4. Course Learning Objectives (CLOs)'));
+    docChildren.push(h1('4. Course Learning Objectives (CLOs)'));
     data.clos.forEach((clo, i) => {
       docChildren.push(new Paragraph({
-        children: [
-          new TextRun({ text: `CLO#${i + 1}: `, bold: true }),
-          new TextRun({ text: clo }),
-        ],
+        children: [body(`CLO#${i + 1}: `, { bold: true }), body(clo)],
         spacing: { after: 100 },
       }));
     });
-    docChildren.push(new Paragraph({ spacing: { after: 200 } }));
+    docChildren.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
 
     // ── 5. MLOs ───────────────────────────────────────────────────
-    docChildren.push(sectionTitle('5. Module Learning Objectives (MLOs)'));
+    docChildren.push(h1('5. Module Learning Objectives (MLOs)'));
     data.mlosByModule.forEach(mod => {
       docChildren.push(
-        subSectionTitle(`${mod.moduleName} Learning Objectives`),
-        ...mod.objectives.map((obj, i) => new Paragraph({
-          children: [
-            new TextRun({ text: `MLO#${i + 1}: `, bold: true }),
-            new TextRun({ text: obj }),
-          ],
-          spacing: { after: 60 },
-        })),
+        h2(`${mod.moduleName} Learning Objectives`),
+        ...mod.objectives.map((obj, i) => {
+          const isDraft = mod.isGenerated;
+          const draftLabel = isDraft ? ' [DRAFT MLO - AI-GENERATED]' : '';
+          return new Paragraph({
+            children: [body(`MLO#${i + 1}: `, { bold: true }), body(obj + draftLabel, { italics: isDraft, color: isDraft ? 'FF6B6B' : '000000' })],
+            spacing: { after: 60 },
+          });
+        }),
       );
     });
 
     // ── 6. ALIGNMENT SUMMARY MATRIX ───────────────────────────────
     docChildren.push(
-      sectionTitle('6. Alignment Summary Matrix'),
+      h1('6. Alignment Summary Matrix'),
       new Paragraph({
-        children: [new TextRun({
-          text: 'The table below provides a visual overview of how Course Learning Objectives (CLOs) map to University Learning Objectives (ULOs) and Program Learning Objectives (PLOs). Checkmarks indicate objectives addressed by the course.',
-          size: 20,
-        })],
+        children: [body('The table below provides a visual overview of how Course Learning Objectives (CLOs) map to University Learning Objectives (ULOs) and Program Learning Objectives (PLOs). Checkmarks indicate objectives addressed by the course.')],
         spacing: { after: 200 },
       }),
     );
@@ -217,61 +239,52 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
     const borders = { top: border, bottom: border, left: border, right: border };
 
     const matrixRows = [
-      // Header row
       new TableRow({
         children: [
           new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: 'Objective', bold: true, size: 18, color: WHITE })], alignment: AlignmentType.CENTER })],
-            width: { size: labelColW, type: WidthType.DXA },
-            borders,
+            children: [new Paragraph({ children: [new TextRun({ text: 'Objective', bold: true, size: 18, color: WHITE, font: FONT })], alignment: AlignmentType.CENTER })],
+            width: { size: labelColW, type: WidthType.DXA }, borders,
             shading: { fill: BLUE, type: ShadingType.CLEAR },
             margins: { top: 80, bottom: 80, left: 120, right: 120 },
           }),
           ...data.clos.map((_, i) => new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: `CLO#${i + 1}`, bold: true, size: 18, color: WHITE })], alignment: AlignmentType.CENTER })],
-            width: { size: cloColW, type: WidthType.DXA },
-            borders,
+            children: [new Paragraph({ children: [new TextRun({ text: `CLO#${i + 1}`, bold: true, size: 18, color: WHITE, font: FONT })], alignment: AlignmentType.CENTER })],
+            width: { size: cloColW, type: WidthType.DXA }, borders,
             shading: { fill: BLUE, type: ShadingType.CLEAR },
             margins: { top: 80, bottom: 80, left: 60, right: 60 },
           })),
         ],
       }),
-      // ULO rows
       ...data.ulos.map((u, i) => new TableRow({
         children: [
           new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: `ULO: ${u.name}`, size: 18 })] })],
-            width: { size: labelColW, type: WidthType.DXA },
-            borders,
+            children: [new Paragraph({ children: [new TextRun({ text: `ULO: ${u.name}`, size: 18, font: FONT })] })],
+            width: { size: labelColW, type: WidthType.DXA }, borders,
             shading: { fill: i % 2 === 0 ? 'EEF2FF' : 'FFFFFF', type: ShadingType.CLEAR },
             margins: { top: 60, bottom: 60, left: 120, right: 120 },
           }),
           ...data.clos.map(() => new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: u.addressed ? '✓' : '', size: 18, color: BLUE, bold: true })], alignment: AlignmentType.CENTER })],
-            width: { size: cloColW, type: WidthType.DXA },
-            borders,
+            children: [new Paragraph({ children: [new TextRun({ text: u.addressed ? '\u2713' : '', size: 18, color: BLUE, bold: true })], alignment: AlignmentType.CENTER })],
+            width: { size: cloColW, type: WidthType.DXA }, borders,
             shading: { fill: i % 2 === 0 ? 'EEF2FF' : 'FFFFFF', type: ShadingType.CLEAR },
             margins: { top: 60, bottom: 60, left: 60, right: 60 },
           })),
         ],
       })),
-      // PLO rows
       ...(data.plos || []).map((plo, i) => {
         const label = `PLO#${i + 1}: ${plo.length > 55 ? plo.substring(0, 52) + '...' : plo}`;
         const shade = (data.ulos.length + i) % 2 === 0 ? 'EEF2FF' : 'FFFFFF';
         return new TableRow({
           children: [
             new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: label, size: 18 })] })],
-              width: { size: labelColW, type: WidthType.DXA },
-              borders,
+              children: [new Paragraph({ children: [new TextRun({ text: label, size: 18, font: FONT })] })],
+              width: { size: labelColW, type: WidthType.DXA }, borders,
               shading: { fill: shade, type: ShadingType.CLEAR },
               margins: { top: 60, bottom: 60, left: 120, right: 120 },
             }),
             ...data.clos.map(() => new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: '✓', size: 18, color: BLUE, bold: true })], alignment: AlignmentType.CENTER })],
-              width: { size: cloColW, type: WidthType.DXA },
-              borders,
+              children: [new Paragraph({ children: [new TextRun({ text: '\u2713', size: 18, color: BLUE, bold: true })], alignment: AlignmentType.CENTER })],
+              width: { size: cloColW, type: WidthType.DXA }, borders,
               shading: { fill: shade, type: ShadingType.CLEAR },
               margins: { top: 60, bottom: 60, left: 60, right: 60 },
             })),
@@ -286,14 +299,14 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
         columnWidths: [labelColW, ...data.clos.map(() => cloColW)],
         rows: matrixRows,
       }),
-      new Paragraph({ spacing: { after: 400 } }),
+      new Paragraph({ spacing: { after: 400 }, children: [] }),
     );
 
     // ── 7. QM FEEDBACK ────────────────────────────────────────────
     docChildren.push(
-      sectionTitle('7. Feedback on Objectives (QM General Standard 2)'),
+      h1('7. Feedback on Objectives (QM General Standard 2)'),
       new Paragraph({
-        children: [new TextRun({ text: 'Source: QM Course Design Rubric Standards (Higher Education)', size: 18, italics: true, color: GRAY })],
+        children: [body('Source: QM Course Design Rubric Standards (Higher Education)', { size: 18, italics: true, color: GRAY })],
         spacing: { after: 200 },
       }),
       ...[
@@ -303,54 +316,117 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
         { id: '2.4', title: 'The relationship between learning objectives, learning activities, and assessments is made clear.', text: data.qmFeedback.qm2_4 },
         { id: '2.5', title: 'The learning objectives are suited to and reflect the level of the course.', text: data.qmFeedback.qm2_5 },
       ].flatMap(qm => [
-        new Paragraph({ children: [new TextRun({ text: `QM ${qm.id}: ${qm.title}`, bold: true, color: BLUE })], spacing: { before: 200, after: 80 } }),
-        new Paragraph({ text: qm.text, spacing: { after: 200 } }),
+        h2(`QM ${qm.id}: ${qm.title}`),
+        new Paragraph({ children: [body(qm.text)], spacing: { after: 200 } }),
       ]),
     );
 
     // ── 8. ALIGNMENT BY CLOs ──────────────────────────────────────
-    docChildren.push(sectionTitle('8. Alignment Organized by CLOs', true));
+    docChildren.push(h1('8. Alignment Organized by CLOs', true));
     data.cloMappings.forEach((mapping, idx) => {
       docChildren.push(
-        new Paragraph({
-          children: [new TextRun({ text: `CLO#${idx + 1}: ${mapping.clo}`, bold: true, size: 24, color: BLUE })],
-          spacing: { before: 300, after: 100 },
-        }),
-        new Paragraph({ children: [new TextRun({ text: 'Relevant Module Objectives & Associated Assessments/Activities', bold: true })], spacing: { after: 80 } }),
+        h2(`CLO#${idx + 1}: ${mapping.clo}`),
+        h3('Relevant Module Objectives & Associated Assessments/Activities'),
       );
       mapping.alignedModules.forEach(mo => {
-        docChildren.push(new Paragraph({ text: `${mo.moduleName}: ${mo.objective}`, bullet: { level: 0 }, spacing: { after: 50 } }));
+        docChildren.push(new Paragraph({ children: [body(`${mo.moduleName}: ${mo.objective}`)], bullet: { level: 0 }, spacing: { after: 50 } }));
         mo.items.forEach(item => {
-          docChildren.push(new Paragraph({ text: `[${item.type}] ${item.title}`, bullet: { level: 1 }, spacing: { after: 50 } }));
+          docChildren.push(new Paragraph({ children: [body(`[${item.type}] ${item.title}`)], bullet: { level: 1 }, spacing: { after: 50 } }));
         });
       });
       docChildren.push(
-        new Paragraph({ children: [new TextRun({ text: 'Findings', bold: true })], spacing: { before: 200, after: 60 } }),
-        new Paragraph({ text: mapping.findings, spacing: { after: 100 } }),
-        new Paragraph({ children: [new TextRun({ text: 'Recommendations', bold: true })], spacing: { before: 100, after: 60 } }),
-        new Paragraph({ text: mapping.recommendations, spacing: { after: 300 } }),
+        h3('Findings'),
+        new Paragraph({ children: [body(mapping.findings)], spacing: { after: 100 } }),
+        h3('Recommendations'),
+        new Paragraph({ children: [body(mapping.recommendations)], spacing: { after: 300 } }),
       );
     });
 
     // ── 9. ALIGNMENT BY MODULES ───────────────────────────────────
-    docChildren.push(sectionTitle('9. Alignment Organized by Modules', true));
+    docChildren.push(h1('9. Alignment Organized by Modules', true));
     data.moduleMappings.forEach(mod => {
       docChildren.push(
-        new Paragraph({
-          children: [new TextRun({ text: mod.moduleName, bold: true, size: 24, color: BLUE })],
-          spacing: { before: 300, after: 100 },
-        }),
-        new Paragraph({ children: [new TextRun({ text: 'Relevant CLOs, MLOs, & Associated Assessments/Activities', bold: true })], spacing: { after: 80 } }),
-        ...mod.relevantCLOs.map(clo => new Paragraph({ text: `CLO: ${clo}`, bullet: { level: 0 }, spacing: { after: 50 } })),
-        ...mod.relevantMLOs.map(mlo => new Paragraph({ text: `MLO: ${mlo}`, bullet: { level: 0 }, spacing: { after: 50 } })),
-        new Paragraph({ children: [new TextRun({ text: 'Findings', bold: true })], spacing: { before: 200, after: 60 } }),
-        new Paragraph({ text: mod.findings, spacing: { after: 100 } }),
-        new Paragraph({ children: [new TextRun({ text: 'Recommendations', bold: true })], spacing: { before: 100, after: 60 } }),
-        new Paragraph({ text: mod.recommendations, spacing: { after: 300 } }),
+        h2(mod.moduleName),
+        h3('Relevant CLOs, MLOs, & Associated Assessments/Activities'),
+        ...mod.relevantCLOs.map(clo => new Paragraph({ children: [body(`CLO: ${clo}`)], bullet: { level: 0 }, spacing: { after: 50 } })),
+        ...mod.relevantMLOs.map(mlo => new Paragraph({ children: [body(`MLO: ${mlo}`)], bullet: { level: 0 }, spacing: { after: 50 } })),
+        h3('Findings'),
+        new Paragraph({ children: [body(mod.findings)], spacing: { after: 100 } }),
+        h3('Recommendations'),
+        new Paragraph({ children: [body(mod.recommendations)], spacing: { after: 300 } }),
       );
     });
 
-    const doc = new Document({ sections: [{ children: docChildren }] });
+    // ── BUILD DOCUMENT ────────────────────────────────────────────
+    const doc = new Document({
+      styles: {
+        default: {
+          document: { run: { font: FONT, size: 24 } },
+        },
+        paragraphStyles: [
+          {
+            id: 'Heading1',
+            name: 'Heading 1',
+            basedOn: 'Normal',
+            next: 'Normal',
+            quickFormat: true,
+            paragraph: {
+              shading: { fill: BLUE, type: ShadingType.CLEAR },
+              spacing: { before: 360, after: 160 },
+              indent: { left: 200, right: 200 },
+              outlineLevel: 0,
+            },
+            run: { font: FONT, bold: true, color: WHITE, size: 32 },
+          },
+          {
+            id: 'Heading2',
+            name: 'Heading 2',
+            basedOn: 'Normal',
+            next: 'Normal',
+            quickFormat: true,
+            paragraph: {
+              border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: ORANGE, space: 1 } },
+              spacing: { before: 280, after: 120 },
+              outlineLevel: 1,
+            },
+            run: { font: FONT, bold: true, color: BLUE, size: 26 },
+          },
+          {
+            id: 'Heading3',
+            name: 'Heading 3',
+            basedOn: 'Normal',
+            next: 'Normal',
+            quickFormat: true,
+            paragraph: { spacing: { before: 200, after: 80 }, outlineLevel: 2 },
+            run: { font: 'Arial', bold: true, color: ORANGE, size: 22 },
+          },
+        ],
+      },
+      numbering: {
+        config: [
+          {
+            reference: 'ulo-interdisciplinary',
+            levels: [{ level: 0, format: LevelFormat.DECIMAL, text: '%1.', alignment: AlignmentType.LEFT,
+              style: { paragraph: { indent: { left: 720, hanging: 360 } } } }],
+          },
+          {
+            reference: 'ulo-disciplinary',
+            levels: [{ level: 0, format: LevelFormat.DECIMAL, text: '%1.', alignment: AlignmentType.LEFT,
+              style: { paragraph: { indent: { left: 720, hanging: 360 } } } }],
+          },
+        ],
+      },
+      sections: [{
+        properties: {
+          page: {
+            size: { width: 12240, height: 15840 },
+            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
+          },
+        },
+        children: docChildren,
+      }],
+    });
+
     const blob = await Packer.toBlob(doc);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -389,7 +465,7 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
       {data.ulos && data.ulos.length > 0 && (
         <section className="bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
           <h3 className="text-3xl font-bold text-[#E36C09] text-center mb-8 border-b pb-4">List of University Learning Objectives (ULOs)</h3>
-          
+
           <div className="space-y-8">
             {['Interdisciplinary', 'Disciplinary'].map(cat => {
               const items = data.ulos.filter(u => u.category === cat);
@@ -455,9 +531,16 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
               <h4 className="text-2xl font-bold text-[#0033A0] mb-6">Module Learning Objectives From {mod.moduleName}</h4>
               <div className="space-y-3 pl-6 border-l-4 border-blue-100">
                 {mod.objectives.map((obj, objIdx) => (
-                  <div key={objIdx} className="flex gap-3">
+                  <div key={objIdx} className="flex gap-3 items-start">
                     <span className="font-bold text-slate-500 shrink-0 text-lg">MLO#{objIdx+1}:</span>
-                    <p className="text-slate-700 text-lg">{obj}</p>
+                    <div className="flex-1">
+                      <div className="flex gap-2 items-center mb-1">
+                        <p className="text-slate-700 text-lg">{obj}</p>
+                        {mod.isGenerated && (
+                          <span className="inline-block px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-bold rounded-full border border-gray-300">Draft MLO</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

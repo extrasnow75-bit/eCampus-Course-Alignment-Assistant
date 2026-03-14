@@ -95,7 +95,9 @@ export const generateDesignMap = async (
     
     PROCESS:
     1. Analyze the provided Design Document for an ${courseContext} course that lasts ${courseLength}.
-    2. Extract Module Objectives. Guidance on location: ${objectiveLocation || "Found under 'Module Introduction' sections"}.
+    2. Extract or Generate Module Objectives. Guidance on location: ${objectiveLocation || "Found under 'Module Introduction' sections"}.
+       - For each module: If module learning objectives are explicitly found, extract them and set isGenerated to false.
+       - If module learning objectives are NOT found for a module: Generate 1-2 draft objectives based on the module's content, topics, and alignment with the provided CLOs. Use measurable action verbs (Bloom's Taxonomy), ensure learner-centered perspective, and follow QM+ Standards. Set isGenerated to true for generated objectives.
     3. Identify the module name (e.g., "Module 1", "Week 1") for each objective.
     4. Identify and list related course items (Readings, Multimedia, Quizzes, Assignments, Discussions) for each objective.
     5. Map these MLOs and items to the Course Learning Objectives (CLOs) provided.
@@ -112,7 +114,7 @@ export const generateDesignMap = async (
     - executiveSummary: A high-level overview of the alignment state.
     - plos: An array of strings, each being a Program Learning Objective.
     - clos: An array of strings, each being a Course Learning Objective.
-    - mlosByModule: An array of objects, each containing a moduleName and an array of objectives (MLOs).
+    - mlosByModule: An array of objects, each containing a moduleName, an array of objectives (MLOs), and an isGenerated boolean flag (true if objectives were AI-generated, false/omitted if extracted).
     - qmFeedback: Feedback for QM standards 2.1 through 2.5.
     - cloMappings: Alignment organized by CLOs. For each CLO, list relevant module objectives and items, findings, and recommendations.
     - moduleMappings: Alignment organized by Modules. For each module, list relevant CLOs, MLOs, findings, and recommendations.
@@ -163,7 +165,8 @@ export const generateDesignMap = async (
               type: Type.OBJECT,
               properties: {
                 moduleName: { type: Type.STRING },
-                objectives: { type: Type.ARRAY, items: { type: Type.STRING } }
+                objectives: { type: Type.ARRAY, items: { type: Type.STRING } },
+                isGenerated: { type: Type.BOOLEAN }
               },
               required: ["moduleName", "objectives"]
             }
