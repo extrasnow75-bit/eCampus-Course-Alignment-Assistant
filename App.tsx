@@ -387,8 +387,40 @@ const App: React.FC = () => {
 
             {/* Dropdown Menu */}
             {isHelpOpen && (
-              <div className="absolute right-0 mt-1 w-96 bg-white border border-slate-200 rounded-xl shadow-lg z-50 animate-in slide-in-from-top-2 duration-200">
+              <div className="absolute right-0 mt-1 w-[28rem] bg-white border border-slate-200 rounded-xl shadow-lg z-50 animate-in slide-in-from-top-2 duration-200">
                 <div className="p-4 flex flex-col gap-3">
+
+                  {/* Gemini API Key Instructions */}
+                  <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-2">
+                    <p className="text-sm font-black text-gray-900">How To Get a Gemini API Key</p>
+                    <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600">
+                      <li>Go to <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a>.</li>
+                      <li>Sign in with your Google or SSO account, such as your Boise State University email.</li>
+                      <li>
+                        Create the key:
+                        <ol className="list-[lower-alpha] list-inside space-y-1 mt-1 ml-4">
+                          <li>Click <span className="font-bold">"Get API key"</span> on the left.</li>
+                          <li>Click the <span className="font-bold">"Create API key"</span> button.</li>
+                        </ol>
+                      </li>
+                      <li>Copy the string of letters and numbers that appears.</li>
+                      <li>Paste it into the <span className="font-bold">Gemini API Key</span> field in the setup panel above.</li>
+                    </ol>
+                    <p className="text-xs text-gray-500">
+                      Source:{' '}
+                      <a
+                        href="https://docs.google.com/document/d/1Ce1gOTozOD3TGd8ntPz3oEWJjU-Y07K2akuIJHXnzHk/edit?tab=t.0#heading=h.xaazhwt982j4"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        What a Gemini API Key Is, and How and Why to Get One
+                      </a>
+                    </p>
+                  </div>
+
+                  <div className="border-t border-slate-100 my-1" />
+
                   <a
                     href="https://docs.google.com/document/d/1g4WLYmFsdiXvBi0LPZPCMgv6SwnhTBxzh7dLmMt0O40/edit?tab=t.0"
                     target="_blank"
