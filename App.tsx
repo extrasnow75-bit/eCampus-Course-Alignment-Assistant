@@ -456,7 +456,7 @@ const App: React.FC = () => {
                       <ul className="space-y-1.5 text-sm text-gray-600">
                         <li><span className="font-semibold text-gray-700">Document extraction:</span> gemini-3.1-flash-lite-preview</li>
                         <li><span className="font-semibold text-gray-700">MLO & QM feedback:</span> gemini-3.1-flash-lite-preview</li>
-                        <li><span className="font-semibold text-gray-700">Alignment analysis:</span> gemini-3.1-pro-preview</li>
+                        <li><span className="font-semibold text-gray-700">Alignment analysis:</span> gemini-3.1-flash-lite-preview</li>
                       </ul>
                     </div>
                   </section>

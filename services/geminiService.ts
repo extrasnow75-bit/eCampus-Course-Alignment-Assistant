@@ -309,7 +309,7 @@ Output ONLY valid JSON, no additional text.
   const moduleSummaries = extracted.modules.map(m => `${m.moduleName}: ${m.items.map(i => `[${i.type}] ${i.title}`).join('; ')}`).join('\n');
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-pro-preview", // Pro: complex alignment reasoning on compact JSON only (~3,000 tokens)
+    model: "gemini-3.1-flash-lite-preview", // Flash-Lite for alignment: free tier compatible, sufficient for compact JSON reasoning
     contents: `
 Course: ${courseInfo || 'N/A'} (${courseContext}, ${courseLength})
 
