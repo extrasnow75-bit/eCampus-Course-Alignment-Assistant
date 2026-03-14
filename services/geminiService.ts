@@ -98,7 +98,7 @@ IMPORTANT:
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-pro-preview",
+    model: "gemini-3.1-flash-lite-preview", // Flash-Lite: high daily limit, handles full document read
     contents: `Extract document structure:\n\n${documentContent}`,
     config: {
       systemInstruction,
@@ -309,7 +309,7 @@ Output ONLY valid JSON, no additional text.
   const moduleSummaries = extracted.modules.map(m => `${m.moduleName}: ${m.items.map(i => `[${i.type}] ${i.title}`).join('; ')}`).join('\n');
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite-preview",
+    model: "gemini-3.1-pro-preview", // Pro: complex alignment reasoning on compact JSON only (~3,000 tokens)
     contents: `
 Course: ${courseInfo || 'N/A'} (${courseContext}, ${courseLength})
 
