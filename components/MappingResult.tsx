@@ -9,6 +9,7 @@ import {
 interface Props {
   data: DesignMap;
   onReset: () => void;
+  reportType?: 'full' | 'partial';
 }
 
 const ItemIcon = ({ type }: { type: string }) => {
@@ -22,7 +23,7 @@ const ItemIcon = ({ type }: { type: string }) => {
   }
 };
 
-export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
+export const MappingResult: React.FC<Props> = ({ data, onReset, reportType = 'full' }) => {
   const downloadWord = async () => {
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     const BLUE = '0033A0';
@@ -54,12 +55,13 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
     const docChildren: any[] = [];
 
     // ── COVER PAGE ────────────────────────────────────────────────
+    const coverTitle = reportType === 'partial' ? 'LIST OF OBJECTIVES' : 'COURSE ALIGNMENT REPORT';
     docChildren.push(
       new Paragraph({ children: [], spacing: { before: 1440, after: 0 } }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 200 },
-        children: [new TextRun({ text: 'COURSE ALIGNMENT REPORT', font: FONT, bold: true, size: 56, color: BLUE })],
+        children: [new TextRun({ text: coverTitle, font: FONT, bold: true, size: 56, color: BLUE })],
       }),
       // Orange horizontal rule
       new Paragraph({
@@ -115,9 +117,16 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
     );
 
     // ── TABLE OF CONTENTS ─────────────────────────────────────────
-    docChildren.push(
-      h1('Table of Contents'),
-      ...[
+    const tocItems = reportType === 'partial'
+      ? [
+        '1. University Learning Objectives (ULOs)',
+        '    1.1 Interdisciplinary ULOs',
+        '    1.2 Disciplinary ULOs',
+        '2. Program Learning Objectives (PLOs)',
+        '3. Course Learning Objectives (CLOs)',
+        '4. Module Learning Objectives (MLOs)',
+      ]
+      : [
         '1. Executive Summary',
         '2. University Learning Objectives (ULOs)',
         '    2.1 Interdisciplinary ULOs',
@@ -129,34 +138,42 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
         '7. Feedback on Objectives (QM General Standard 2)',
         '8. Alignment Organized by CLOs',
         '9. Alignment Organized by Modules',
-      ].map(item => new Paragraph({ children: [body(item)], spacing: { after: 60 } })),
+      ];
+    docChildren.push(
+      h1('Table of Contents'),
+      ...tocItems.map(item => new Paragraph({ children: [body(item)], spacing: { after: 60 } })),
       new Paragraph({ pageBreakBefore: true, children: [] }),
     );
 
-    // ── 1. EXECUTIVE SUMMARY ──────────────────────────────────────
-    docChildren.push(
-      h1('1. Executive Summary'),
-      new Paragraph({
-        children: [body(data.executiveSummary)],
-        border: { left: { style: BorderStyle.SINGLE, size: 8, color: ORANGE, space: 4 } },
-        shading: { fill: 'F5F5F5', type: ShadingType.CLEAR },
-        spacing: { before: 80, after: 80 },
-      }),
-      new Paragraph({ spacing: { after: 200 }, children: [] }),
-    );
+    // ── 1. EXECUTIVE SUMMARY (Full report only) ──────────────────
+    if (reportType === 'full') {
+      docChildren.push(
+        h1('1. Executive Summary'),
+        new Paragraph({
+          children: [body(data.executiveSummary)],
+          border: { left: { style: BorderStyle.SINGLE, size: 8, color: ORANGE, space: 4 } },
+          shading: { fill: 'F5F5F5', type: ShadingType.CLEAR },
+          spacing: { before: 80, after: 80 },
+        }),
+        new Paragraph({ spacing: { after: 200 }, children: [] }),
+      );
+    }
 
-    // ── 2. ULOs ───────────────────────────────────────────────────
-    docChildren.push(h1('2. University Learning Objectives (ULOs)'));
+    // ── ULOs ───────────────────────────────────────────────────
+    const uloSectionNum = reportType === 'partial' ? '1' : '2';
+    const uloSubPrefix = reportType === 'partial' ? '1.' : '2.';
+    docChildren.push(h1(`${uloSectionNum}. University Learning Objectives (ULOs)`));
 
     const interdisciplinary = data.ulos.filter(u => u.category === 'Interdisciplinary');
     const disciplinary = data.ulos.filter(u => u.category === 'Disciplinary');
 
     if (interdisciplinary.length > 0) {
-      docChildren.push(h2('2.1 Interdisciplinary ULOs'));
+      docChildren.push(h2(`${uloSubPrefix}1 Interdisciplinary ULOs`));
       interdisciplinary.forEach(u => {
         docChildren.push(new Paragraph({
           children: [
             body(`${u.name}`, { bold: true }),
+            body(u.addressed ? ' ✓' : ''),
             body(` \u2014 `),
             body(u.reasoning, { italics: !u.addressed, color: u.addressed ? undefined : GRAY }),
           ],
@@ -167,11 +184,12 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
     }
 
     if (disciplinary.length > 0) {
-      docChildren.push(h2('2.2 Disciplinary ULOs'));
+      docChildren.push(h2(`${uloSubPrefix}2 Disciplinary ULOs`));
       disciplinary.forEach(u => {
         docChildren.push(new Paragraph({
           children: [
             body(`${u.name}`, { bold: true }),
+            body(u.addressed ? ' ✓' : ''),
             body(` \u2014 `),
             body(u.reasoning, { italics: !u.addressed, color: u.addressed ? undefined : GRAY }),
           ],
@@ -186,9 +204,10 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
       spacing: { before: 100, after: 400 },
     }));
 
-    // ── 3. PLOs ───────────────────────────────────────────────────
+    // ── PLOs ───────────────────────────────────────────────────
+    const ploSectionNum = reportType === 'partial' ? '2' : '3';
     if (data.plos && data.plos.length > 0) {
-      docChildren.push(h1('3. Program Learning Objectives (PLOs)'));
+      docChildren.push(h1(`${ploSectionNum}. Program Learning Objectives (PLOs)`));
       data.plos.forEach((plo, i) => {
         docChildren.push(new Paragraph({
           children: [body(`PLO#${i + 1}: `, { bold: true }), body(plo)],
@@ -198,8 +217,9 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
       docChildren.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
     }
 
-    // ── 4. CLOs ───────────────────────────────────────────────────
-    docChildren.push(h1('4. Course Learning Objectives (CLOs)'));
+    // ── CLOs ───────────────────────────────────────────────────
+    const cloSectionNum = reportType === 'partial' ? '3' : '4';
+    docChildren.push(h1(`${cloSectionNum}. Course Learning Objectives (CLOs)`));
     data.clos.forEach((clo, i) => {
       docChildren.push(new Paragraph({
         children: [body(`CLO#${i + 1}: `, { bold: true }), body(clo)],
@@ -208,8 +228,9 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
     });
     docChildren.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
 
-    // ── 5. MLOs ───────────────────────────────────────────────────
-    docChildren.push(h1('5. Module Learning Objectives (MLOs)'));
+    // ── MLOs ───────────────────────────────────────────────────
+    const mloSectionNum = reportType === 'partial' ? '4' : '5';
+    docChildren.push(h1(`${mloSectionNum}. Module Learning Objectives (MLOs)`));
     data.mlosByModule.forEach(mod => {
       docChildren.push(
         h2(`${mod.moduleName} Learning Objectives`),
@@ -224,21 +245,23 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
       );
     });
 
-    // ── 6. ALIGNMENT SUMMARY MATRIX ───────────────────────────────
-    docChildren.push(
-      h1('6. Alignment Summary Matrix'),
-      new Paragraph({
-        children: [body('The table below provides a visual overview of how Course Learning Objectives (CLOs) map to University Learning Objectives (ULOs) and Program Learning Objectives (PLOs). Checkmarks indicate objectives addressed by the course.')],
-        spacing: { after: 200 },
-      }),
-    );
+    // ── 6-9. DETAILED ALIGNMENT SECTIONS (Full report only) ────────
+    if (reportType === 'full') {
+      // ── 6. ALIGNMENT SUMMARY MATRIX ───────────────────────────────
+      docChildren.push(
+        h1('6. Alignment Summary Matrix'),
+        new Paragraph({
+          children: [body('The table below provides a visual overview of how Course Learning Objectives (CLOs) map to University Learning Objectives (ULOs) and Program Learning Objectives (PLOs). Checkmarks indicate objectives addressed by the course.')],
+          spacing: { after: 200 },
+        }),
+      );
 
-    const labelColW = 3600;
-    const cloColW = Math.max(500, Math.floor((9360 - labelColW) / Math.max(data.clos.length, 1)));
-    const border = { style: BorderStyle.SINGLE, size: 1, color: 'BBBBBB' };
-    const borders = { top: border, bottom: border, left: border, right: border };
+      const labelColW = 3600;
+      const cloColW = Math.max(500, Math.floor((9360 - labelColW) / Math.max(data.clos.length, 1)));
+      const border = { style: BorderStyle.SINGLE, size: 1, color: 'BBBBBB' };
+      const borders = { top: border, bottom: border, left: border, right: border };
 
-    const matrixRows = [
+      const matrixRows = [
       new TableRow({
         children: [
           new TableCell({
@@ -294,68 +317,69 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
     ];
 
     docChildren.push(
-      new Table({
-        width: { size: labelColW + cloColW * data.clos.length, type: WidthType.DXA },
-        columnWidths: [labelColW, ...data.clos.map(() => cloColW)],
-        rows: matrixRows,
-      }),
-      new Paragraph({ spacing: { after: 400 }, children: [] }),
-    );
-
-    // ── 7. QM FEEDBACK ────────────────────────────────────────────
-    docChildren.push(
-      h1('7. Feedback on Objectives (QM General Standard 2)'),
-      new Paragraph({
-        children: [body('Source: QM Course Design Rubric Standards (Higher Education)', { size: 18, italics: true, color: GRAY })],
-        spacing: { after: 200 },
-      }),
-      ...[
-        { id: '2.1', title: 'The course-level learning objectives describe outcomes that are measurable.', text: data.qmFeedback.qm2_1 },
-        { id: '2.2', title: 'The module/unit-level learning objectives describe outcomes that are measurable and consistent with the course-level objectives.', text: data.qmFeedback.qm2_2 },
-        { id: '2.3', title: 'Learning objectives are clearly stated, are learner-centered, and are prominently located in the course.', text: data.qmFeedback.qm2_3 },
-        { id: '2.4', title: 'The relationship between learning objectives, learning activities, and assessments is made clear.', text: data.qmFeedback.qm2_4 },
-        { id: '2.5', title: 'The learning objectives are suited to and reflect the level of the course.', text: data.qmFeedback.qm2_5 },
-      ].flatMap(qm => [
-        h2(`QM ${qm.id}: ${qm.title}`),
-        new Paragraph({ children: [body(qm.text)], spacing: { after: 200 } }),
-      ]),
-    );
-
-    // ── 8. ALIGNMENT BY CLOs ──────────────────────────────────────
-    docChildren.push(h1('8. Alignment Organized by CLOs', true));
-    data.cloMappings.forEach((mapping, idx) => {
-      docChildren.push(
-        h2(`CLO#${idx + 1}: ${mapping.clo}`),
-        h3('Relevant Module Objectives & Associated Assessments/Activities'),
+        new Table({
+          width: { size: labelColW + cloColW * data.clos.length, type: WidthType.DXA },
+          columnWidths: [labelColW, ...data.clos.map(() => cloColW)],
+          rows: matrixRows,
+        }),
+        new Paragraph({ spacing: { after: 400 }, children: [] }),
       );
-      mapping.alignedModules.forEach(mo => {
-        docChildren.push(new Paragraph({ children: [body(`${mo.moduleName}: ${mo.objective}`)], bullet: { level: 0 }, spacing: { after: 50 } }));
-        mo.items.forEach(item => {
-          docChildren.push(new Paragraph({ children: [body(`[${item.type}] ${item.title}`)], bullet: { level: 1 }, spacing: { after: 50 } }));
+
+      // ── 7. QM FEEDBACK ────────────────────────────────────────────
+      docChildren.push(
+        h1('7. Feedback on Objectives (QM General Standard 2)'),
+        new Paragraph({
+          children: [body('Source: QM Course Design Rubric Standards (Higher Education)', { size: 18, italics: true, color: GRAY })],
+          spacing: { after: 200 },
+        }),
+        ...[
+          { id: '2.1', title: 'The course-level learning objectives describe outcomes that are measurable.', text: data.qmFeedback.qm2_1 },
+          { id: '2.2', title: 'The module/unit-level learning objectives describe outcomes that are measurable and consistent with the course-level objectives.', text: data.qmFeedback.qm2_2 },
+          { id: '2.3', title: 'Learning objectives are clearly stated, are learner-centered, and are prominently located in the course.', text: data.qmFeedback.qm2_3 },
+          { id: '2.4', title: 'The relationship between learning objectives, learning activities, and assessments is made clear.', text: data.qmFeedback.qm2_4 },
+          { id: '2.5', title: 'The learning objectives are suited to and reflect the level of the course.', text: data.qmFeedback.qm2_5 },
+        ].flatMap(qm => [
+          h2(`QM ${qm.id}: ${qm.title}`),
+          new Paragraph({ children: [body(qm.text)], spacing: { after: 200 } }),
+        ]),
+      );
+
+      // ── 8. ALIGNMENT BY CLOs ──────────────────────────────────────
+      docChildren.push(h1('8. Alignment Organized by CLOs', true));
+      data.cloMappings.forEach((mapping, idx) => {
+        docChildren.push(
+          h2(`CLO#${idx + 1}: ${mapping.clo}`),
+          h3('Relevant Module Objectives & Associated Assessments/Activities'),
+        );
+        mapping.alignedModules.forEach(mo => {
+          docChildren.push(new Paragraph({ children: [body(`${mo.moduleName}: ${mo.objective}`)], bullet: { level: 0 }, spacing: { after: 50 } }));
+          mo.items.forEach(item => {
+            docChildren.push(new Paragraph({ children: [body(`[${item.type}] ${item.title}`)], bullet: { level: 1 }, spacing: { after: 50 } }));
+          });
         });
+        docChildren.push(
+          h3('Findings'),
+          new Paragraph({ children: [body(mapping.findings)], spacing: { after: 100 } }),
+          h3('Recommendations'),
+          new Paragraph({ children: [body(mapping.recommendations)], spacing: { after: 300 } }),
+        );
       });
-      docChildren.push(
-        h3('Findings'),
-        new Paragraph({ children: [body(mapping.findings)], spacing: { after: 100 } }),
-        h3('Recommendations'),
-        new Paragraph({ children: [body(mapping.recommendations)], spacing: { after: 300 } }),
-      );
-    });
 
-    // ── 9. ALIGNMENT BY MODULES ───────────────────────────────────
-    docChildren.push(h1('9. Alignment Organized by Modules', true));
-    data.moduleMappings.forEach(mod => {
-      docChildren.push(
-        h2(mod.moduleName),
-        h3('Relevant CLOs, MLOs, & Associated Assessments/Activities'),
-        ...mod.relevantCLOs.map(clo => new Paragraph({ children: [body(`CLO: ${clo}`)], bullet: { level: 0 }, spacing: { after: 50 } })),
-        ...mod.relevantMLOs.map(mlo => new Paragraph({ children: [body(`MLO: ${mlo}`)], bullet: { level: 0 }, spacing: { after: 50 } })),
-        h3('Findings'),
-        new Paragraph({ children: [body(mod.findings)], spacing: { after: 100 } }),
-        h3('Recommendations'),
-        new Paragraph({ children: [body(mod.recommendations)], spacing: { after: 300 } }),
-      );
-    });
+      // ── 9. ALIGNMENT BY MODULES ───────────────────────────────────
+      docChildren.push(h1('9. Alignment Organized by Modules', true));
+      data.moduleMappings.forEach(mod => {
+        docChildren.push(
+          h2(mod.moduleName),
+          h3('Relevant CLOs, MLOs, & Associated Assessments/Activities'),
+          ...mod.relevantCLOs.map(clo => new Paragraph({ children: [body(`CLO: ${clo}`)], bullet: { level: 0 }, spacing: { after: 50 } })),
+          ...mod.relevantMLOs.map(mlo => new Paragraph({ children: [body(`MLO: ${mlo}`)], bullet: { level: 0 }, spacing: { after: 50 } })),
+          h3('Findings'),
+          new Paragraph({ children: [body(mod.findings)], spacing: { after: 100 } }),
+          h3('Recommendations'),
+          new Paragraph({ children: [body(mod.recommendations)], spacing: { after: 300 } }),
+        );
+      });
+    }
 
     // ── BUILD DOCUMENT ────────────────────────────────────────────
     const doc = new Document({
@@ -431,7 +455,10 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${data.courseTitle.replace(/[^a-z0-9]/gi, '_')}_QM_Alignment_Report.docx`;
+    const filename = reportType === 'partial'
+      ? `${data.courseTitle.replace(/[^a-z0-9]/gi, '_')}_Objectives_List.docx`
+      : `${data.courseTitle.replace(/[^a-z0-9]/gi, '_')}_QM_Alignment_Report.docx`;
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -442,7 +469,7 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
         <div>
           <h2 className="text-4xl font-extrabold text-slate-900">{data.courseTitle}</h2>
           <div className="flex items-center gap-3 mt-2">
-            <p className="text-slate-500 text-xl">Course Design Alignment Report</p>
+            <p className="text-slate-500 text-xl">{reportType === 'partial' ? 'List of Objectives' : 'Course Design Alignment Report'}</p>
             <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
             <p className="text-slate-500 text-xl">{data.courseLength}</p>
           </div>
@@ -457,10 +484,12 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 p-10 rounded-xl shadow-sm">
-        <h3 className="text-3xl font-bold text-[#E36C09] text-center mb-8 uppercase tracking-wide">Executive Summary</h3>
-        <p className="text-slate-700 text-xl leading-relaxed">{data.executiveSummary}</p>
-      </div>
+      {reportType === 'full' && (
+        <div className="bg-white border border-slate-200 p-10 rounded-xl shadow-sm">
+          <h3 className="text-3xl font-bold text-[#E36C09] text-center mb-8 uppercase tracking-wide">Executive Summary</h3>
+          <p className="text-slate-700 text-xl leading-relaxed">{data.executiveSummary}</p>
+        </div>
+      )}
 
       {data.ulos && data.ulos.length > 0 && (
         <section className="bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
@@ -549,99 +578,103 @@ export const MappingResult: React.FC<Props> = ({ data, onReset }) => {
         </div>
       </section>
 
-      <section className="bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
-        <h3 className="text-3xl font-bold text-[#E36C09] text-center mb-8 border-b pb-4">Feedback On Objectives (QM General Standard 2)</h3>
-        <div className="space-y-8">
-          {[
-            { id: '2.1', title: 'The course-level learning objectives describe outcomes that are measurable.', text: data.qmFeedback.qm2_1 },
-            { id: '2.2', title: 'The module/unit-level learning objectives describe outcomes that are measurable and consistent with the course-level objectives.', text: data.qmFeedback.qm2_2 },
-            { id: '2.3', title: 'Learning objectives are clearly stated, are learner-centered, and are prominently located in the course.', text: data.qmFeedback.qm2_3 },
-            { id: '2.4', title: 'The relationship between learning objectives, learning activities, and assessments is made clear.', text: data.qmFeedback.qm2_4 },
-            { id: '2.5', title: 'The learning objectives are suited to and reflect the level of the course.', text: data.qmFeedback.qm2_5 }
-          ].map((qm, i) => (
-            <div key={i} className="bg-slate-50 p-8 rounded-xl border border-slate-100">
-              <h4 className="font-bold text-[#0033A0] text-xl mb-3">QM {qm.id}: {qm.title}</h4>
-              <p className="text-slate-600 text-lg leading-relaxed italic">"{qm.text}"</p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-10 text-sm text-slate-400 italic">Source: <a href="https://www.qualitymatters.org/qa-resources/rubric-standards/higher-ed-publisher-rubric" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">QM Course Design Rubric Standards (Higher Ed. Standards)</a></p>
-      </section>
-
-      <div className="space-y-16">
-        <h3 className="text-4xl font-bold text-center text-[#E36C09]">Alignment Organized By CLOs</h3>
-        {data.cloMappings.map((mapping, idx) => (
-          <section key={idx} className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
-            <div className="p-8 border-b border-slate-100 bg-slate-50">
-              <h3 className="text-2xl font-bold text-[#0033A0]">CLO#{idx + 1}: {mapping.clo}</h3>
-            </div>
-            <div className="p-8 space-y-8">
-              <h4 className="font-bold text-slate-800 text-xl">Relevant Module Objectives & Associated Assessments/Activities</h4>
-              {mapping.alignedModules.map((mo, moIdx) => (
-                <div key={moIdx} className="border-l-4 border-blue-500 pl-8 py-3">
-                  <p className="text-2xl font-medium text-slate-800 mb-5"><span className="text-blue-600 font-bold">{mo.moduleName}:</span> {mo.objective}</p>
-                  <div className="flex flex-wrap gap-4">
-                    {mo.items.map((item, itemIdx) => (
-                      <div key={itemIdx} className="flex items-center gap-3 bg-white px-5 py-3 rounded-xl border border-slate-200 text-base shadow-sm">
-                        <ItemIcon type={item.type} />
-                        <span className="font-semibold text-slate-600">{item.title}</span>
-                      </div>
-                    ))}
-                  </div>
+      {reportType === 'full' && (
+        <>
+          <section className="bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
+            <h3 className="text-3xl font-bold text-[#E36C09] text-center mb-8 border-b pb-4">Feedback On Objectives (QM General Standard 2)</h3>
+            <div className="space-y-8">
+              {[
+                { id: '2.1', title: 'The course-level learning objectives describe outcomes that are measurable.', text: data.qmFeedback.qm2_1 },
+                { id: '2.2', title: 'The module/unit-level learning objectives describe outcomes that are measurable and consistent with the course-level objectives.', text: data.qmFeedback.qm2_2 },
+                { id: '2.3', title: 'Learning objectives are clearly stated, are learner-centered, and are prominently located in the course.', text: data.qmFeedback.qm2_3 },
+                { id: '2.4', title: 'The relationship between learning objectives, learning activities, and assessments is made clear.', text: data.qmFeedback.qm2_4 },
+                { id: '2.5', title: 'The learning objectives are suited to and reflect the level of the course.', text: data.qmFeedback.qm2_5 }
+              ].map((qm, i) => (
+                <div key={i} className="bg-slate-50 p-8 rounded-xl border border-slate-100">
+                  <h4 className="font-bold text-[#0033A0] text-xl mb-3">QM {qm.id}: {qm.title}</h4>
+                  <p className="text-slate-600 text-lg leading-relaxed italic">"{qm.text}"</p>
                 </div>
               ))}
-              <div className="space-y-8 pt-8 border-t border-slate-100">
-                <div>
-                  <h5 className="font-bold text-slate-900 text-xl mb-3">Findings</h5>
-                  <p className="text-slate-700 text-xl leading-relaxed">{mapping.findings}</p>
-                </div>
-                <div>
-                  <h5 className="font-bold text-slate-900 text-xl mb-3">Recommendations</h5>
-                  <p className="text-slate-700 text-xl leading-relaxed">{mapping.recommendations}</p>
-                </div>
-              </div>
             </div>
+            <p className="mt-10 text-sm text-slate-400 italic">Source: <a href="https://www.qualitymatters.org/qa-resources/rubric-standards/higher-ed-publisher-rubric" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">QM Course Design Rubric Standards (Higher Ed. Standards)</a></p>
           </section>
-        ))}
-      </div>
 
-      <div className="space-y-16">
-        <h3 className="text-4xl font-bold text-center text-[#E36C09]">Alignment Organized By Modules</h3>
-        {data.moduleMappings.map((mod, idx) => (
-          <section key={idx} className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
-            <div className="p-8 border-b border-slate-100 bg-slate-50">
-              <h3 className="text-2xl font-bold text-[#0033A0]">{mod.moduleName}</h3>
-            </div>
-            <div className="p-8 space-y-8">
-              <h4 className="font-bold text-slate-800 text-xl">Relevant CLOs, MLO, & Associated Assessments/Activities</h4>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                  <p className="text-sm font-bold text-slate-500 uppercase mb-3 tracking-widest">Relevant CLOs</p>
-                  <ul className="list-disc ml-6 space-y-2">
-                    {mod.relevantCLOs.map((clo, i) => <li key={i} className="text-slate-700 text-lg">{clo}</li>)}
-                  </ul>
+          <div className="space-y-16">
+            <h3 className="text-4xl font-bold text-center text-[#E36C09]">Alignment Organized By CLOs</h3>
+            {data.cloMappings.map((mapping, idx) => (
+              <section key={idx} className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+                <div className="p-8 border-b border-slate-100 bg-slate-50">
+                  <h3 className="text-2xl font-bold text-[#0033A0]">CLO#{idx + 1}: {mapping.clo}</h3>
                 </div>
-                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                  <p className="text-sm font-bold text-slate-500 uppercase mb-3 tracking-widest">Relevant MLOs</p>
-                  <ul className="list-disc ml-6 space-y-2">
-                    {mod.relevantMLOs.map((mlo, i) => <li key={i} className="text-slate-700 text-lg">{mlo}</li>)}
-                  </ul>
+                <div className="p-8 space-y-8">
+                  <h4 className="font-bold text-slate-800 text-xl">Relevant Module Objectives & Associated Assessments/Activities</h4>
+                  {mapping.alignedModules.map((mo, moIdx) => (
+                    <div key={moIdx} className="border-l-4 border-blue-500 pl-8 py-3">
+                      <p className="text-2xl font-medium text-slate-800 mb-5"><span className="text-blue-600 font-bold">{mo.moduleName}:</span> {mo.objective}</p>
+                      <div className="flex flex-wrap gap-4">
+                        {mo.items.map((item, itemIdx) => (
+                          <div key={itemIdx} className="flex items-center gap-3 bg-white px-5 py-3 rounded-xl border border-slate-200 text-base shadow-sm">
+                            <ItemIcon type={item.type} />
+                            <span className="font-semibold text-slate-600">{item.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="space-y-8 pt-8 border-t border-slate-100">
+                    <div>
+                      <h5 className="font-bold text-slate-900 text-xl mb-3">Findings</h5>
+                      <p className="text-slate-700 text-xl leading-relaxed">{mapping.findings}</p>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-slate-900 text-xl mb-3">Recommendations</h5>
+                      <p className="text-slate-700 text-xl leading-relaxed">{mapping.recommendations}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-8 pt-8 border-t border-slate-100">
-                <div>
-                  <h5 className="font-bold text-slate-900 text-xl mb-3">Findings</h5>
-                  <p className="text-slate-700 text-xl leading-relaxed">{mod.findings}</p>
+              </section>
+            ))}
+          </div>
+
+          <div className="space-y-16">
+            <h3 className="text-4xl font-bold text-center text-[#E36C09]">Alignment Organized By Modules</h3>
+            {data.moduleMappings.map((mod, idx) => (
+              <section key={idx} className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+                <div className="p-8 border-b border-slate-100 bg-slate-50">
+                  <h3 className="text-2xl font-bold text-[#0033A0]">{mod.moduleName}</h3>
                 </div>
-                <div>
-                  <h5 className="font-bold text-slate-900 text-xl mb-3">Recommendations</h5>
-                  <p className="text-slate-700 text-xl leading-relaxed">{mod.recommendations}</p>
+                <div className="p-8 space-y-8">
+                  <h4 className="font-bold text-slate-800 text-xl">Relevant CLOs, MLO, & Associated Assessments/Activities</h4>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                      <p className="text-sm font-bold text-slate-500 uppercase mb-3 tracking-widest">Relevant CLOs</p>
+                      <ul className="list-disc ml-6 space-y-2">
+                        {mod.relevantCLOs.map((clo, i) => <li key={i} className="text-slate-700 text-lg">{clo}</li>)}
+                      </ul>
+                    </div>
+                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                      <p className="text-sm font-bold text-slate-500 uppercase mb-3 tracking-widest">Relevant MLOs</p>
+                      <ul className="list-disc ml-6 space-y-2">
+                        {mod.relevantMLOs.map((mlo, i) => <li key={i} className="text-slate-700 text-lg">{mlo}</li>)}
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="space-y-8 pt-8 border-t border-slate-100">
+                    <div>
+                      <h5 className="font-bold text-slate-900 text-xl mb-3">Findings</h5>
+                      <p className="text-slate-700 text-xl leading-relaxed">{mod.findings}</p>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-slate-900 text-xl mb-3">Recommendations</h5>
+                      <p className="text-slate-700 text-xl leading-relaxed">{mod.recommendations}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </section>
-        ))}
-      </div>
+              </section>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 };

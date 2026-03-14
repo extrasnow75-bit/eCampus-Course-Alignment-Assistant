@@ -39,6 +39,7 @@ const App: React.FC = () => {
   const [geminiKeyInput, setGeminiKeyInput] = useState('');
   const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
   const [user, setUser] = useState<{ access_token: string; expires_at?: number } | null>(null);
+  const [reportType, setReportType] = useState<'full' | 'partial'>('full');
 
   // Restore Google session on mount via Firebase auth state.
   // We use an `initialized` flag to avoid the race where Firebase fires
@@ -229,7 +230,7 @@ const App: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentContent, apiKey, result]);
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (type: 'full' | 'partial' = 'full') => {
     if (!clos.trim() || !documentContent.trim()) {
       setError('Please provide both Course Learning Objectives and the Design Document content.');
       return;
@@ -241,12 +242,13 @@ const App: React.FC = () => {
       return;
     }
 
+    setReportType(type);
     setIsLoading(true);
     setError(null);
     try {
       const data = await generateDesignMap(
-        clos, 
-        documentContent, 
+        clos,
+        documentContent,
         finalContext,
         courseLength,
         plos,
@@ -305,7 +307,7 @@ const App: React.FC = () => {
   if (result) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-12">
-        <MappingResult data={result} onReset={() => setResult(null)} />
+        <MappingResult data={result} onReset={() => setResult(null)} reportType={reportType} />
       </div>
     );
   }
@@ -395,6 +397,7 @@ const App: React.FC = () => {
 
         {/* Instruction Box */}
         <div className="mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center animate-in fade-in slide-in-from-top-4 duration-500">
+          <h2 className="text-2xl font-bold text-[#0033A0] mb-4">About This App</h2>
           <p className="text-xl font-medium text-slate-700">
             Fill out the form below to generate an objective alignment report for a specific course. The report will be based on Boise State University's QM+ Standards.
           </p>
@@ -671,9 +674,12 @@ const App: React.FC = () => {
             </section>
           </div>
           {error && <div className="mt-10 p-6 bg-red-50 border border-red-100 text-red-700 rounded-xl text-lg flex items-center gap-4"><svg className="w-6 h-6 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path></svg>{error}</div>}
-          <div className="mt-14 flex flex-col items-center">
-            <button onClick={handleGenerate} disabled={isLoading || isParsing} className="group relative w-full md:w-auto px-24 py-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-xl transition-all transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50">
-              <div className="flex items-center justify-center gap-4"><span className="text-2xl">Generate Alignment Report</span><svg className="w-8 h-8 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg></div>
+          <div className="mt-14 flex flex-col items-center gap-4">
+            <button onClick={() => handleGenerate('partial')} disabled={isLoading || isParsing} className="group relative w-full md:w-auto px-20 py-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-xl transition-all transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50">
+              <div className="flex items-center justify-center gap-4"><span className="text-2xl">Generate Complete List of Objectives</span><svg className="w-8 h-8 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg></div>
+            </button>
+            <button onClick={() => handleGenerate('full')} disabled={isLoading || isParsing} className="group relative w-full md:w-auto px-24 py-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-xl transition-all transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50">
+              <div className="flex items-center justify-center gap-4"><span className="text-2xl">Generate Full Alignment Report</span><svg className="w-8 h-8 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg></div>
             </button>
             <p className="mt-6 text-slate-400 text-sm text-center italic max-w-lg">AI maps content using Bloom's Taxonomy and Backward Design principles based on QM+ standards.</p>
           </div>
