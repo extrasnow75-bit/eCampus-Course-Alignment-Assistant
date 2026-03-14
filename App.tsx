@@ -396,7 +396,7 @@ const App: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 mt-10">
 
         {/* Instruction Box */}
-        <div className="mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 animate-in fade-in slide-in-from-top-4 duration-500">
           <h2 className="text-2xl font-bold text-[#0033A0] mb-4">About This App</h2>
           <p className="text-xl font-medium text-slate-700">
             Fill out the form below to generate an objective alignment report for a specific course. The report will be based on Boise State University's QM+ Standards.
