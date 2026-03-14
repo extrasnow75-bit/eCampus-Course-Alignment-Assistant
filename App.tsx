@@ -629,7 +629,7 @@ const App: React.FC = () => {
               {/* Gemini API Key Card */}
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-sm">
                 <div className="flex items-center gap-2">
-                  <Key className="w-5 h-5 text-orange-500" />
+                  <Key className="w-5 h-5 text-[#0033A0]" />
                   <h3 className="font-bold text-[#0033A0] text-base">Gemini API Key</h3>
                 </div>
                 {apiKey ? (
