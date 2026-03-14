@@ -425,6 +425,30 @@ const App: React.FC = () => {
           {isSetupOpen && (
             <div className="bg-slate-50 p-5 grid grid-cols-1 gap-4">
 
+              {/* Disclaimer Card */}
+              <div className="bg-white border border-blue-200 rounded-xl p-5 shadow-sm space-y-3">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 shrink-0 text-[#0033A0] mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-[#0033A0] text-sm mb-2">Disclaimer: Alignment Needs To Be Verified</h3>
+                    <div className="text-black text-xs leading-relaxed space-y-2">
+                      <p>Treat the AI-generated report as a draft, not a final product. Course design maps and other types of alignment documents are usually the result of collaboration between an instructional design consultant and a faculty developer. This process is not meant to replace that; instead it should serve as a first draft or a next-best option.</p>
+                      <p>After getting the draft design map, carefully check it yourself against the course content, use your best judgement to make edits, and then verify the alignment with the Faculty Developer (FD), Instructor of Record (IoR), or whomever has the qualifications or authority to approve the accuracy of the draft map.</p>
+                      <p className="font-extrabold">Again, treat the AI-generated report as a draft, not a final product.</p>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer select-none mt-3 pt-3 border-t border-blue-100">
+                      <input
+                        type="checkbox"
+                        checked={isDisclaimerChecked}
+                        onChange={(e) => setIsDisclaimerChecked(e.target.checked)}
+                        className="w-4 h-4 accent-blue-600 cursor-pointer rounded"
+                      />
+                      <span className="text-xs font-bold text-[#0033A0]">I understand and agree — show me the form</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               {/* Gemini API Key Card */}
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-sm">
                 <div className="flex items-center gap-2">
@@ -484,30 +508,6 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 )}
-              </div>
-
-              {/* Disclaimer Card */}
-              <div className="bg-white border border-blue-200 rounded-xl p-5 shadow-sm space-y-3">
-                <div className="flex items-start gap-2">
-                  <svg className="w-5 h-5 shrink-0 text-[#0033A0] mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-[#0033A0] text-sm mb-2">Disclaimer: Alignment Needs To Be Verified</h3>
-                    <div className="text-black text-xs leading-relaxed space-y-2">
-                      <p>Treat the AI-generated report as a draft, not a final product. Course design maps and other types of alignment documents are usually the result of collaboration between an instructional design consultant and a faculty developer. This process is not meant to replace that; instead it should serve as a first draft or a next-best option.</p>
-                      <p>After getting the draft design map, carefully check it yourself against the course content, use your best judgement to make edits, and then verify the alignment with the Faculty Developer (FD), Instructor of Record (IoR), or whomever has the qualifications or authority to approve the accuracy of the draft map.</p>
-                      <p className="font-extrabold">Again, treat the AI-generated report as a draft, not a final product.</p>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer select-none mt-3 pt-3 border-t border-blue-100">
-                      <input
-                        type="checkbox"
-                        checked={isDisclaimerChecked}
-                        onChange={(e) => setIsDisclaimerChecked(e.target.checked)}
-                        className="w-4 h-4 accent-blue-600 cursor-pointer rounded"
-                      />
-                      <span className="text-xs font-bold text-[#0033A0]">I understand and agree — show me the form</span>
-                    </label>
-                  </div>
-                </div>
               </div>
 
               {/* Google Sign In Card */}
