@@ -2,6 +2,67 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DesignMap, AutoFillResults } from "../types";
 
+// ── Model metadata ────────────────────────────────────────────────────────────
+export const GEMINI_MODEL_LABELS: Record<string, string> = {
+  'gemini-3.1-flash-lite-preview': 'Gemini Flash-Lite',
+  'gemini-3-flash-preview': 'Gemini Flash',
+  'gemini-3.1-pro-preview': 'Gemini Pro',
+};
+
+export const GEMINI_MODEL_TIERS: Record<string, 'low' | 'mid' | 'high'> = {
+  'gemini-3.1-flash-lite-preview': 'low',
+  'gemini-3-flash-preview': 'mid',
+  'gemini-3.1-pro-preview': 'high',
+};
+
+export interface GeminiDetectionResult {
+  valid: boolean;
+  availableModels: string[];
+  recommended: { step1: string; step2: string; step3: string; fallback: string };
+}
+
+export const detectGeminiModels = async (apiKey: string): Promise<GeminiDetectionResult> => {
+  const ai = new GoogleGenAI({ apiKey });
+
+  const testModel = async (model: string): Promise<boolean> => {
+    try {
+      await ai.models.generateContent({ model, contents: 'Say ok', config: { maxOutputTokens: 5 } });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Validate key with cheapest model first
+  const flashLiteOk = await testModel('gemini-3.1-flash-lite-preview');
+  if (!flashLiteOk) {
+    return {
+      valid: false,
+      availableModels: [],
+      recommended: { step1: 'gemini-3.1-flash-lite-preview', step2: 'gemini-3.1-flash-lite-preview', step3: 'gemini-3.1-pro-preview', fallback: 'gemini-3.1-flash-lite-preview' },
+    };
+  }
+
+  const available: string[] = ['gemini-3.1-flash-lite-preview'];
+  if (await testModel('gemini-3-flash-preview')) available.push('gemini-3-flash-preview');
+  if (await testModel('gemini-3.1-pro-preview')) available.push('gemini-3.1-pro-preview');
+
+  const best = available.includes('gemini-3.1-pro-preview')
+    ? 'gemini-3.1-pro-preview'
+    : available.includes('gemini-3-flash-preview')
+      ? 'gemini-3-flash-preview'
+      : 'gemini-3.1-flash-lite-preview';
+  const mid = available.includes('gemini-3-flash-preview')
+    ? 'gemini-3-flash-preview'
+    : 'gemini-3.1-flash-lite-preview';
+
+  return {
+    valid: true,
+    availableModels: available,
+    recommended: { step1: 'gemini-3.1-flash-lite-preview', step2: mid, step3: best, fallback: 'gemini-3.1-flash-lite-preview' },
+  };
+};
+
 export const analyzeCourseDocument = async (content: string, apiKey?: string): Promise<AutoFillResults> => {
   const activeKey = apiKey || process.env.API_KEY || process.env.GEMINI_API_KEY;
   if (!activeKey) {
@@ -264,6 +325,7 @@ interface AlignmentResult {
     findings: string;
     recommendations: string;
   }>;
+  usedFallback: boolean;
 }
 
 const createAlignmentMappings = async (

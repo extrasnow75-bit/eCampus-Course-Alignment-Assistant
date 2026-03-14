@@ -61,6 +61,15 @@ export interface DesignMap {
   usedFallbackModel?: boolean; // true when Pro was unavailable and Flash-Lite was used instead
 }
 
+export type LLMProvider = 'gemini' | 'openai';
+
+export interface StoredModelConfig {
+  step1: string;
+  step2: string;
+  step3: string;
+  fallback: string;
+}
+
 export interface AutoFillResults {
   courseContext: string;
   courseInfo: string;

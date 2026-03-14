@@ -1,8 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { generateDesignMap, analyzeCourseDocument } from './services/geminiService';
 import { initiateGoogleSignIn, signOutFromGoogle, getStoredAccessToken, onAuthStateChanged } from './services/firebaseService';
-import { DesignMap } from './types';
+import {
+  generateDesignMapWithProvider,
+  analyzeCourseDocumentWithProvider,
+  detectGeminiModels,
+  detectOpenAIModels,
+  LLMProvider,
+  ModelConfig,
+} from './services/llmRouter';
+import { GEMINI_MODEL_LABELS, GEMINI_MODEL_TIERS } from './services/geminiService';
+import { OPENAI_MODEL_LABELS, OPENAI_MODEL_TIERS } from './services/openaiService';
+import { DesignMap, StoredModelConfig } from './types';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { MappingResult } from './components/MappingResult';
 import { SettingsModal } from './components/SettingsModal';
@@ -29,12 +38,15 @@ const stripHtml = (text: string): string => {
 };
 
 // Converts a raw error string into a short, plain-English summary.
-const getErrorSummary = (err: string): string => {
-  if (err.includes('429') || err.includes('RESOURCE_EXHAUSTED') || err.includes('quota')) {
+const getErrorSummary = (err: string, provider: LLMProvider = 'gemini'): string => {
+  if (err.includes('429') || err.includes('RESOURCE_EXHAUSTED') || err.includes('quota') || err.includes('rate_limit') || err.includes('insufficient_quota')) {
+    if (provider === 'openai') {
+      return 'OpenAI API quota or rate limit exceeded. Please wait a moment and try again, or check your usage at platform.openai.com/usage.';
+    }
     return 'Gemini API quota exceeded. Your daily or per-minute limit has been reached. Please wait a few minutes and try again, or check your usage at ai.dev/rate-limit.';
   }
-  if (err.includes('401') || err.includes('403') || err.includes('API key') || err.includes('api_key')) {
-    return 'Invalid or missing API key. Please check your Gemini API key in the setup panel above.';
+  if (err.includes('401') || err.includes('403') || err.includes('API key') || err.includes('api_key') || err.includes('invalid_api_key')) {
+    return `Invalid or missing API key. Please check your ${provider === 'openai' ? 'OpenAI' : 'Gemini'} API key in the setup panel above.`;
   }
   if (err.includes('Failed to fetch') || err.includes('NetworkError') || err.includes('network')) {
     return 'Network error. Please check your internet connection and try again.';
@@ -68,10 +80,29 @@ const App: React.FC = () => {
   const [isAccordionOpen, setIsAccordionOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isUseCasesOpen, setIsUseCasesOpen] = useState(false);
-  const [isSetupOpen, setIsSetupOpen] = useState(!localStorage.getItem('gemini_api_key'));
+  const [isSetupOpen, setIsSetupOpen] = useState(
+    !localStorage.getItem('gemini_api_key') && !localStorage.getItem('openai_api_key')
+  );
   const [isDisclaimerChecked, setIsDisclaimerChecked] = useState(false);
   const [geminiKeyInput, setGeminiKeyInput] = useState('');
   const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+  const [openaiKeyInput, setOpenaiKeyInput] = useState('');
+  const [openaiKey, setOpenaiKey] = useState(localStorage.getItem('openai_api_key') || '');
+  const [selectedLLM, setSelectedLLM] = useState<LLMProvider>(() => {
+    const stored = localStorage.getItem('selected_llm') as LLMProvider | null;
+    if (stored === 'gemini' || stored === 'openai') return stored;
+    // Default: openai if only openai key is present, otherwise gemini
+    return localStorage.getItem('openai_api_key') && !localStorage.getItem('gemini_api_key') ? 'openai' : 'gemini';
+  });
+  const [modelConfig, setModelConfig] = useState<StoredModelConfig | null>(() => {
+    const stored = localStorage.getItem('model_config');
+    return stored ? JSON.parse(stored) : null;
+  });
+  const [availableModels, setAvailableModels] = useState<string[]>(() => {
+    const stored = localStorage.getItem('available_models');
+    return stored ? JSON.parse(stored) : [];
+  });
+  const [isDetecting, setIsDetecting] = useState(false);
   const [user, setUser] = useState<{ access_token: string; expires_at?: number } | null>(null);
   const [reportType, setReportType] = useState<'full' | 'partial'>('full');
   const [showErrorDetails, setShowErrorDetails] = useState(false);
@@ -98,6 +129,79 @@ const App: React.FC = () => {
     });
     return unsubscribe;
   }, []);
+
+  // ── Model display helpers ────────────────────────────────────────────────────
+  const getModelLabel = (model: string): string => {
+    const labels = selectedLLM === 'openai' ? OPENAI_MODEL_LABELS : GEMINI_MODEL_LABELS;
+    return labels[model] || model;
+  };
+
+  const getModelTier = (model: string): 'low' | 'mid' | 'high' => {
+    const tiers = selectedLLM === 'openai' ? OPENAI_MODEL_TIERS : GEMINI_MODEL_TIERS;
+    return tiers[model] || 'low';
+  };
+
+  const isLowTierWarning = (stepKey: string, model: string): boolean => {
+    const tier = getModelTier(model);
+    if (stepKey === 'step2') return tier === 'low';
+    if (stepKey === 'step3') return tier === 'low' || tier === 'mid';
+    return false;
+  };
+
+  // ── Key detection ────────────────────────────────────────────────────────────
+  const handleValidateKey = async (provider: LLMProvider, key: string) => {
+    setIsDetecting(true);
+    try {
+      let detected;
+      if (provider === 'gemini') {
+        detected = await detectGeminiModels(key);
+        if (!detected.valid) { setError('Invalid Gemini API key. Please check and try again.'); return; }
+        setApiKey(key);
+        localStorage.setItem('gemini_api_key', key);
+        setGeminiKeyInput('');
+        if (selectedLLM === 'gemini' || !openaiKey) {
+          setSelectedLLM('gemini');
+          localStorage.setItem('selected_llm', 'gemini');
+          setAvailableModels(detected.availableModels);
+          setModelConfig(detected.recommended);
+          localStorage.setItem('available_models', JSON.stringify(detected.availableModels));
+          localStorage.setItem('model_config', JSON.stringify(detected.recommended));
+        }
+      } else {
+        detected = await detectOpenAIModels(key);
+        if (!detected.valid) { setError('Invalid OpenAI API key. Please check and try again.'); return; }
+        setOpenaiKey(key);
+        localStorage.setItem('openai_api_key', key);
+        setOpenaiKeyInput('');
+        if (selectedLLM === 'openai' || !apiKey) {
+          setSelectedLLM('openai');
+          localStorage.setItem('selected_llm', 'openai');
+          setAvailableModels(detected.availableModels);
+          setModelConfig(detected.recommended);
+          localStorage.setItem('available_models', JSON.stringify(detected.availableModels));
+          localStorage.setItem('model_config', JSON.stringify(detected.recommended));
+        }
+      }
+    } catch (err: any) {
+      setError(`Key validation failed: ${err.message}`);
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
+  const handleSelectLLM = (provider: LLMProvider) => {
+    setSelectedLLM(provider);
+    localStorage.setItem('selected_llm', provider);
+    // Re-detect to get fresh model list for selected provider
+    const key = provider === 'openai' ? openaiKey : apiKey;
+    if (key) handleValidateKey(provider, key);
+  };
+
+  const updateModelConfig = (stepKey: string, model: string) => {
+    const updated = { ...(modelConfig ?? { step1: '', step2: '', step3: '', fallback: '' }), [stepKey]: model };
+    setModelConfig(updated);
+    localStorage.setItem('model_config', JSON.stringify(updated));
+  };
 
   const handleLogin = async () => {
     try {
@@ -240,7 +344,7 @@ const App: React.FC = () => {
       if (documentContent.length > 500 && !isAutoFilling && !result) {
         setIsAutoFilling(true);
         try {
-          const analysis = await analyzeCourseDocument(documentContent, apiKey);
+          const analysis = await analyzeCourseDocumentWithProvider(documentContent, apiKey, openaiKey, selectedLLM);
           if (analysis.courseContext) setContextType(analysis.courseContext);
           if (analysis.courseInfo) setCourseInfo(analysis.courseInfo);
           if (analysis.courseLength) setCourseLength(analysis.courseLength);
@@ -264,7 +368,7 @@ const App: React.FC = () => {
 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentContent, apiKey, result]);
+  }, [documentContent, apiKey, openaiKey, selectedLLM, result]);
 
   const handleGenerate = async (type: 'full' | 'partial' = 'full') => {
     if (!clos.trim() || !documentContent.trim()) {
@@ -283,19 +387,13 @@ const App: React.FC = () => {
     setError(null);
     setShowErrorDetails(false);
     const cleanedContent = stripHtml(documentContent);
+    const activeKey = selectedLLM === 'openai' ? openaiKey : apiKey;
     try {
-      const data = await generateDesignMap(
-        clos,
-        cleanedContent,
-        finalContext,
-        courseLength,
-        plos,
-        ulos,
-        exclusions,
-        objectiveLocation,
-        courseInfo,
-        additionalInfo,
-        apiKey
+      const data = await generateDesignMapWithProvider(
+        { clos, documentContent: cleanedContent, courseContext: finalContext, courseLength, plos, ulos, exclusions, objectiveLocation, courseInfo, additionalInfo },
+        selectedLLM,
+        activeKey,
+        modelConfig ?? undefined
       );
       setResult(data);
     } catch (err: any) {
@@ -494,6 +592,7 @@ const App: React.FC = () => {
               {/* Status dots */}
               <div className="flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-full ${apiKey ? 'bg-green-400' : 'bg-white/30'}`} title={apiKey ? 'Gemini key active' : 'No Gemini key'} />
+                <span className={`w-2 h-2 rounded-full ${openaiKey ? 'bg-green-400' : 'bg-white/30'}`} title={openaiKey ? 'OpenAI key active' : 'No OpenAI key'} />
                 <span className={`w-2 h-2 rounded-full ${user ? 'bg-green-400' : 'bg-white/30'}`} title={user ? 'Google signed in' : 'Not signed in'} />
               </div>
               <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${isSetupOpen ? 'rotate-180' : ''}`} />
@@ -543,7 +642,11 @@ const App: React.FC = () => {
                       {apiKey.slice(0, 8)}...{apiKey.slice(-4)}
                     </p>
                     <button
-                      onClick={() => { setApiKey(''); localStorage.removeItem('gemini_api_key'); }}
+                      onClick={() => {
+                        setApiKey('');
+                        localStorage.removeItem('gemini_api_key');
+                        if (selectedLLM === 'gemini') { setModelConfig(null); setAvailableModels([]); localStorage.removeItem('model_config'); localStorage.removeItem('available_models'); }
+                      }}
                       className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors font-medium"
                     >
                       <LogOut className="w-4 h-4" />
@@ -556,29 +659,17 @@ const App: React.FC = () => {
                       type="password"
                       value={geminiKeyInput}
                       onChange={(e) => setGeminiKeyInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && geminiKeyInput.trim()) {
-                          setApiKey(geminiKeyInput.trim());
-                          localStorage.setItem('gemini_api_key', geminiKeyInput.trim());
-                          setGeminiKeyInput('');
-                        }
-                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && geminiKeyInput.trim()) handleValidateKey('gemini', geminiKeyInput.trim()); }}
                       placeholder="Enter your Gemini API key..."
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono"
                     />
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => {
-                          if (geminiKeyInput.trim()) {
-                            setApiKey(geminiKeyInput.trim());
-                            localStorage.setItem('gemini_api_key', geminiKeyInput.trim());
-                            setGeminiKeyInput('');
-                          }
-                        }}
-                        disabled={!geminiKeyInput.trim()}
+                        onClick={() => { if (geminiKeyInput.trim()) handleValidateKey('gemini', geminiKeyInput.trim()); }}
+                        disabled={!geminiKeyInput.trim() || isDetecting}
                         className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
                       >
-                        Save Key
+                        {isDetecting ? 'Validating...' : 'Validate & Save'}
                       </button>
                       <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
                         Get a free key ↗
@@ -587,6 +678,145 @@ const App: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* OpenAI API Key Card */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <Key className="w-5 h-5 text-green-600" />
+                  <h3 className="font-bold text-[#0033A0] text-base">ChatGPT API Key <span className="text-xs font-normal text-slate-400">(Optional)</span></h3>
+                </div>
+                {openaiKey ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />
+                      <span className="text-sm font-semibold text-green-700">API key active</span>
+                    </div>
+                    <p className="text-xs font-mono text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                      {openaiKey.slice(0, 8)}...{openaiKey.slice(-4)}
+                    </p>
+                    <button
+                      onClick={() => {
+                        setOpenaiKey('');
+                        localStorage.removeItem('openai_api_key');
+                        if (selectedLLM === 'openai') {
+                          setSelectedLLM('gemini');
+                          localStorage.setItem('selected_llm', 'gemini');
+                          setModelConfig(null); setAvailableModels([]);
+                          localStorage.removeItem('model_config'); localStorage.removeItem('available_models');
+                        }
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors font-medium"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Remove Key
+                    </button>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="password"
+                      value={openaiKeyInput}
+                      onChange={(e) => setOpenaiKeyInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && openaiKeyInput.trim()) handleValidateKey('openai', openaiKeyInput.trim()); }}
+                      placeholder="Enter your OpenAI API key..."
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => { if (openaiKeyInput.trim()) handleValidateKey('openai', openaiKeyInput.trim()); }}
+                        disabled={!openaiKeyInput.trim() || isDetecting}
+                        className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                      >
+                        {isDetecting ? 'Validating...' : 'Validate & Save'}
+                      </button>
+                      <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+                        Get a key ↗
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* LLM Selector — shown when both keys are present */}
+              {apiKey && openaiKey && (
+                <div className="bg-white border border-blue-200 rounded-xl p-5 space-y-3 shadow-sm">
+                  <h3 className="font-bold text-[#0033A0] text-base">Which AI would you like to use?</h3>
+                  <div className="flex gap-3">
+                    {[
+                      { value: 'gemini' as LLMProvider, label: 'Google Gemini' },
+                      { value: 'openai' as LLMProvider, label: 'ChatGPT (OpenAI)' },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => handleSelectLLM(value)}
+                        className={`flex-1 py-2.5 px-4 rounded-lg border-2 text-sm font-bold transition-all ${
+                          selectedLLM === value
+                            ? 'border-[#0033A0] bg-blue-50 text-[#0033A0]'
+                            : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Model Assignment Panel — shown after key validation */}
+              {isDetecting && (
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex items-center gap-3 text-sm font-semibold text-blue-600">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                  Validating key and detecting available models...
+                </div>
+              )}
+              {!isDetecting && modelConfig && availableModels.length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-[#0033A0] text-base">AI Model Configuration</h3>
+                    <button
+                      onClick={() => { const key = selectedLLM === 'openai' ? openaiKey : apiKey; if (key) handleValidateKey(selectedLLM, key); }}
+                      className="text-xs text-blue-600 hover:underline font-medium"
+                    >
+                      Re-detect models
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500">⭐ = recommended for this step. ⚠️ = lower-tier model may reduce quality.</p>
+                  <div className="space-y-3">
+                    {([
+                      { key: 'step1', label: 'Step 1: Document Extraction', task: 'Reads and structures the design document' },
+                      { key: 'step2', label: 'Step 2: MLO Generation', task: 'Extracts or generates module learning objectives' },
+                      { key: 'step3', label: 'Step 3: Alignment Analysis', task: 'Creates full alignment mappings and report' },
+                      { key: 'fallback', label: 'Fallback', task: 'Used if Step 3 fails due to quota' },
+                    ] as const).map(({ key, label, task }) => {
+                      const currentModel = (modelConfig as any)[key] as string;
+                      const defaultModel = currentModel;
+                      const warning = isLowTierWarning(key, currentModel);
+                      return (
+                        <div key={key} className="flex items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-700">{label}</p>
+                            <p className="text-xs text-slate-400">{task}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <select
+                              value={currentModel}
+                              onChange={(e) => updateModelConfig(key, e.target.value)}
+                              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium"
+                            >
+                              {availableModels.map(m => (
+                                <option key={m} value={m}>
+                                  {getModelLabel(m)}{m === defaultModel ? ' ⭐' : ''}
+                                </option>
+                              ))}
+                            </select>
+                            {warning && <span title="Lower-tier model selected — results may be less detailed for this step" className="text-amber-500 text-base">⚠️</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Google Sign In Card */}
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-sm">
@@ -755,7 +985,7 @@ const App: React.FC = () => {
                 <svg className="w-6 h-6 shrink-0 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
-                <p className="text-red-800 font-medium text-base flex-1">{getErrorSummary(error)}</p>
+                <p className="text-red-800 font-medium text-base flex-1">{getErrorSummary(error, selectedLLM)}</p>
               </div>
               {/* Action bar */}
               <div className="px-5 pb-4 flex items-center gap-3">
