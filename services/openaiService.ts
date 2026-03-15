@@ -95,9 +95,12 @@ const fetchAvailableModels = async (apiKey: string): Promise<string[] | null> =>
     });
     if (!res.ok) return null;
     const data = await res.json();
-    const ids: string[] = (data.data ?? []).map((m: any) => m.id as string);
-    // Filter to only models we know about and support
-    return KNOWN_MODELS.filter(m => ids.includes(m));
+    const allIds: string[] = (data.data ?? []).map((m: any) => m.id as string).sort();
+    // Log all available models to console so we can identify correct API model IDs
+    console.log('[OpenAI] All models available on this account:', allIds);
+    const matched = KNOWN_MODELS.filter(m => allIds.includes(m));
+    console.log('[OpenAI] Matched supported models:', matched);
+    return matched;
   } catch {
     return null;
   }
