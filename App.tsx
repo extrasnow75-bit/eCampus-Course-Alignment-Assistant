@@ -600,7 +600,7 @@ const App: React.FC = () => {
           </button>
 
           {isSetupOpen && (
-            <div className="bg-slate-50 p-5 grid grid-cols-1 gap-4">
+            <div className="bg-blue-50 p-5 grid grid-cols-1 gap-4">
 
               {/* Disclaimer Card */}
               <div className="bg-white border border-blue-200 rounded-xl p-5 shadow-sm space-y-3">
@@ -626,8 +626,11 @@ const App: React.FC = () => {
                 </div>
               </div>
 
+              {/* API Keys Group */}
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+
               {/* Gemini API Key Card */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-sm">
+              <div className="p-5 space-y-3">
                 <div className="flex items-center gap-2">
                   <Key className="w-5 h-5 text-[#0033A0]" />
                   <h3 className="font-bold text-[#0033A0] text-base">Gemini API Key</h3>
@@ -679,10 +682,17 @@ const App: React.FC = () => {
                 )}
               </div>
 
+              {/* OR divider */}
+              <div className="flex items-center bg-blue-50 border-t border-b border-slate-200 px-5 py-2.5">
+                <div className="flex-grow border-t border-slate-200" />
+                <span className="mx-4 text-xs font-bold text-slate-400 uppercase tracking-widest">or</span>
+                <div className="flex-grow border-t border-slate-200" />
+              </div>
+
               {/* OpenAI API Key Card */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-sm">
+              <div className="p-5 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Key className="w-5 h-5 text-green-600" />
+                  <Key className="w-5 h-5 text-[#0033A0]" />
                   <h3 className="font-bold text-[#0033A0] text-base">ChatGPT API Key <span className="text-xs font-normal text-slate-400">(Optional)</span></h3>
                 </div>
                 {openaiKey ? (
@@ -736,6 +746,7 @@ const App: React.FC = () => {
                   </div>
                 )}
               </div>
+              </div>{/* end API Keys Group */}
 
               {/* LLM Selector — shown when both keys are present */}
               {apiKey && openaiKey && (
