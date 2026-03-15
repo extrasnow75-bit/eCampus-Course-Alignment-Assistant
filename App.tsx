@@ -89,6 +89,8 @@ const App: React.FC = () => {
   const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
   const [openaiKeyInput, setOpenaiKeyInput] = useState('');
   const [openaiKey, setOpenaiKey] = useState(localStorage.getItem('openai_api_key') || '');
+  const [openaiKeyError, setOpenaiKeyError] = useState<string | null>(null);
+  const [geminiKeyError, setGeminiKeyError] = useState<string | null>(null);
   const [selectedLLM, setSelectedLLM] = useState<LLMProvider>(() => {
     const stored = localStorage.getItem('selected_llm') as LLMProvider | null;
     if (stored === 'gemini' || stored === 'openai') return stored;
@@ -152,11 +154,13 @@ const App: React.FC = () => {
   // ── Key detection ────────────────────────────────────────────────────────────
   const handleValidateKey = async (provider: LLMProvider, key: string) => {
     setIsDetecting(true);
+    if (provider === 'gemini') setGeminiKeyError(null);
+    else setOpenaiKeyError(null);
     try {
       let detected;
       if (provider === 'gemini') {
         detected = await detectGeminiModels(key);
-        if (!detected.valid) { setError('Invalid Gemini API key. Please check and try again.'); return; }
+        if (!detected.valid) { setGeminiKeyError('Invalid Gemini API key. Please check and try again.'); return; }
         setApiKey(key);
         localStorage.setItem('gemini_api_key', key);
         setGeminiKeyInput('');
@@ -170,10 +174,11 @@ const App: React.FC = () => {
         }
       } else {
         detected = await detectOpenAIModels(key);
-        if (!detected.valid) { setError('Invalid OpenAI API key. Please check and try again.'); return; }
+        if (!detected.valid) { setOpenaiKeyError('Key validation failed. Check that your key is correct and your OpenAI account has billing set up.'); return; }
         setOpenaiKey(key);
         localStorage.setItem('openai_api_key', key);
         setOpenaiKeyInput('');
+        setOpenaiKeyError(null);
         if (selectedLLM === 'openai' || !apiKey) {
           setSelectedLLM('openai');
           localStorage.setItem('selected_llm', 'openai');
@@ -184,7 +189,8 @@ const App: React.FC = () => {
         }
       }
     } catch (err: any) {
-      setError(`Key validation failed: ${err.message}`);
+      if (provider === 'gemini') setGeminiKeyError(`Validation error: ${err.message}`);
+      else setOpenaiKeyError(`Validation error: ${err.message}`);
     } finally {
       setIsDetecting(false);
     }
@@ -744,6 +750,12 @@ const App: React.FC = () => {
                         Get a key ↗
                       </a>
                     </div>
+                    {openaiKeyError && (
+                      <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-1">
+                        <span className="text-red-500 text-sm mt-0.5">⚠</span>
+                        <p className="text-sm text-red-700">{openaiKeyError}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
