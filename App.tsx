@@ -468,8 +468,8 @@ const App: React.FC = () => {
       {/* White Ribbon Bar */}
       <div className="bg-white border-b border-gray-200 py-3 px-8 shadow-sm">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-black text-gray-400 uppercase tracking-widest">
-            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+          <div className="flex items-center gap-2 text-sm font-black text-gray-600 uppercase tracking-widest">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
             Course Alignment Report Generator
           </div>
 
@@ -490,7 +490,7 @@ const App: React.FC = () => {
 
                   {/* AI Setup */}
                   <section>
-                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-3">AI Setup</h3>
+                    <h3 className="text-xs font-black text-gray-600 uppercase tracking-[0.2em] mb-3">AI Setup</h3>
                     <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-2">
                       <p className="text-sm font-black text-gray-900">How To Get a Gemini API Key</p>
                       <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600">
@@ -506,7 +506,7 @@ const App: React.FC = () => {
                         <li>Copy the string of letters and numbers that appears.</li>
                         <li>Paste it into the <span className="font-bold">Gemini API Key</span> field in the setup panel above.</li>
                       </ol>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-600">
                         Source:{' '}
                         <a href="https://docs.google.com/document/d/1Ce1gOTozOD3TGd8ntPz3oEWJjU-Y07K2akuIJHXnzHk/edit?tab=t.0#heading=h.xaazhwt982j4" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                           What a Gemini API Key Is, and How and Why to Get One
@@ -517,7 +517,7 @@ const App: React.FC = () => {
 
                   {/* Resources & Training */}
                   <section>
-                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Resources & Training</h3>
+                    <h3 className="text-xs font-black text-gray-600 uppercase tracking-[0.2em] mb-3">Resources & Training</h3>
                     <div className="flex flex-col gap-2">
                       <a href="https://docs.google.com/document/d/1g4WLYmFsdiXvBi0LPZPCMgv6SwnhTBxzh7dLmMt0O40/edit?tab=t.0" target="_blank" rel="noopener noreferrer"
                         className="flex items-center justify-between p-3 bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 rounded-xl transition-all group">
@@ -539,7 +539,7 @@ const App: React.FC = () => {
 
                   {/* App Suggestions */}
                   <section>
-                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Find bugs? Have improvement requests?</h3>
+                    <h3 className="text-xs font-black text-gray-600 uppercase tracking-[0.2em] mb-3">Find bugs? Have improvement requests?</h3>
                     <a href="https://docs.google.com/document/d/1GPIXFfo81JDEQQVh9m16iYgKK9vi9-ietIXzAYP6CVU/edit?usp=drivesdk" target="_blank" rel="noopener noreferrer"
                       className="flex items-center justify-between p-3 bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 rounded-xl transition-all group">
                       <span className="text-sm font-bold text-gray-800 group-hover:text-blue-700">App Suggestions Document</span>
@@ -549,7 +549,7 @@ const App: React.FC = () => {
 
                   {/* AI Models Used */}
                   <section>
-                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-3">AI Models Used</h3>
+                    <h3 className="text-xs font-black text-gray-600 uppercase tracking-[0.2em] mb-3">AI Models Used</h3>
                     <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl">
                       <ul className="space-y-1.5 text-sm text-gray-600">
                         <li><span className="font-semibold text-gray-700">Document extraction:</span> gemini-3.1-flash-lite-preview</li>
@@ -693,7 +693,7 @@ const App: React.FC = () => {
               <div className="p-5 space-y-3">
                 <div className="flex items-center gap-2">
                   <Key className="w-5 h-5 text-[#0033A0]" />
-                  <h3 className="font-bold text-[#0033A0] text-base">ChatGPT API Key <span className="text-xs font-normal text-slate-400">(Optional)</span></h3>
+                  <h3 className="font-bold text-[#0033A0] text-base">ChatGPT API Key <span className="text-xs font-normal text-slate-600">(Optional)</span></h3>
                 </div>
                 {openaiKey ? (
                   <>
@@ -791,7 +791,7 @@ const App: React.FC = () => {
                       Re-detect models
                     </button>
                   </div>
-                  <p className="text-xs text-slate-500">⭐ = recommended for this step. ⚠️ = lower-tier model may reduce quality.</p>
+                  <p className="text-xs text-slate-600">⭐ = recommended for this step. ⚠️ = lower-tier model may reduce quality.</p>
                   <div className="space-y-3">
                     {([
                       { key: 'step1', label: 'Step 1: Document Extraction', task: 'Reads and structures the design document' },
@@ -806,7 +806,7 @@ const App: React.FC = () => {
                         <div key={key} className="flex items-start gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-slate-700">{label}</p>
-                            <p className="text-xs text-slate-400">{task}</p>
+                            <p className="text-xs text-slate-600">{task}</p>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <select
@@ -884,7 +884,7 @@ const App: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 <div className="lg:col-span-4 space-y-6">
                   <div>
-                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">1. Course Context</label>
+                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wider">1. Course Context</label>
                     <select value={contextType} onChange={(e) => setContextType(e.target.value)} className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white mb-3 text-lg">
                       <option value="Undergraduate">Undergraduate</option>
                       <option value="Master's">Master's</option>
@@ -900,7 +900,7 @@ const App: React.FC = () => {
 
                 <div className="lg:col-span-8 space-y-4">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider">2. Design Document Content <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider">2. Design Document Content <span className="text-red-500">*</span></label>
                     <div className="flex items-center gap-3">
                       {isParsing && <div className="flex items-center gap-2 text-xs font-medium text-blue-600 animate-pulse"><div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>Parsing...</div>}
                       <input type="file" id="file-upload" className="hidden" accept=".txt,.md,.docx,.pdf" onChange={handleFileUpload} />
@@ -956,38 +956,38 @@ const App: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">3. Course Dept, ###, & Title</label>
+                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wider">3. Course Dept, ###, & Title</label>
                     <input type="text" value={courseInfo} onChange={(e) => setCourseInfo(e.target.value)} placeholder="e.g. MATH 108: Intermediate Algebra" className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white text-lg" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">4. Course Length</label>
+                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wider">4. Course Length</label>
                     <input type="text" value={courseLength} onChange={(e) => setCourseLength(e.target.value)} placeholder="e.g. 7 weeks, 15 weeks" className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white text-lg" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-500 mb-3 tracking-wider">5. COURSE LEARNING OBJECTIVES (CLOs) <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wider">5. COURSE LEARNING OBJECTIVES (CLOs) <span className="text-red-500">*</span></label>
                     <textarea value={clos} onChange={(e) => setClos(e.target.value)} placeholder="Paste your course-level learning objectives here..." className="w-full h-48 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white resize-none font-mono text-lg" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-500 mb-3 tracking-wider">6. PROGRAM LEARNING OBJECTIVES (PLOs) [OPTIONAL]</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wider">6. PROGRAM LEARNING OBJECTIVES (PLOs) [OPTIONAL]</label>
                     <textarea value={plos} onChange={(e) => setPlos(e.target.value)} placeholder="Paste PLOs..." className="w-full h-48 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white resize-none text-lg" />
                   </div>
                 </div>
 
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-bold text-slate-500 mb-3 tracking-wider">7. UNIVERSITY LEARNING OBJECTIVES (ULOs) [OPTIONAL]</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-3 tracking-wider">7. UNIVERSITY LEARNING OBJECTIVES (ULOs) [OPTIONAL]</label>
                     <textarea value={ulos} onChange={(e) => setUlos(e.target.value)} placeholder="Paste ULOs..." className="w-full h-48 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white resize-none text-lg" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">8. Where are module objectives (MLOs) located?</label>
+                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wider">8. Where are module objectives (MLOs) located?</label>
                     <textarea value={objectiveLocation} onChange={(e) => setObjectiveLocation(e.target.value)} placeholder="e.g. Describe location..." className="w-full h-28 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white text-lg italic text-slate-600" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">9. Exclude content from the following:</label>
+                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wider">9. Exclude content from the following:</label>
                     <textarea value={exclusions} onChange={(e) => setExclusions(e.target.value)} placeholder="e.g. Instructor Resources..." className="w-full h-28 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white text-lg italic text-slate-600" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">10. Add other relevant info: [Optional]</label>
+                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wider">10. Add other relevant info: [Optional]</label>
                     <textarea value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} placeholder="e.g. Specific focus..." className="w-full h-28 px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white text-lg italic text-slate-600" />
                   </div>
                 </div>
@@ -1045,7 +1045,7 @@ const App: React.FC = () => {
             <button onClick={() => handleGenerate('full')} disabled={isLoading || isParsing} className="group relative w-full md:w-auto px-24 py-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-xl transition-all transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50">
               <div className="flex items-center justify-center gap-4"><span className="text-2xl">Generate Full Alignment Report</span><svg className="w-8 h-8 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg></div>
             </button>
-            <p className="mt-6 text-slate-400 text-sm text-center italic max-w-lg">AI maps content using Bloom's Taxonomy and Backward Design principles based on QM+ standards.</p>
+            <p className="mt-6 text-slate-500 text-sm text-center italic max-w-lg">AI maps content using Bloom's Taxonomy and Backward Design principles based on QM+ standards.</p>
           </div>
         </div>}
       </main>
