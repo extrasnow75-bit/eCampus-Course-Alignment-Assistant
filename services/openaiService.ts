@@ -83,6 +83,26 @@ const parseJSON = (text: string): any => {
 };
 
 // ── Model detection ───────────────────────────────────────────────────────────
+
+// Known models we support, in priority order (highest to lowest)
+const KNOWN_MODELS = ['gpt-5.4-pro', 'gpt-5.4', 'gpt-4o', 'gpt-4o-mini'];
+
+const fetchAvailableModels = async (apiKey: string): Promise<string[] | null> => {
+  // Use the /models endpoint (free GET, no tokens used) to validate key + list models
+  try {
+    const res = await fetch('https://api.openai.com/v1/models', {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const ids: string[] = (data.data ?? []).map((m: any) => m.id as string);
+    // Filter to only models we know about and support
+    return KNOWN_MODELS.filter(m => ids.includes(m));
+  } catch {
+    return null;
+  }
+};
+
 const testOpenAIModel = async (apiKey: string, model: string): Promise<boolean> => {
   try {
     const res = await fetch(OPENAI_API_URL, {
@@ -97,32 +117,50 @@ const testOpenAIModel = async (apiKey: string, model: string): Promise<boolean> 
 };
 
 export const detectOpenAIModels = async (apiKey: string): Promise<OpenAIDetectionResult> => {
-  // Validate key with cheapest model first
-  const keyValid = await testOpenAIModel(apiKey, 'gpt-4o-mini');
-  if (!keyValid) {
-    return {
-      valid: false,
-      availableModels: [],
-      recommended: { step1: 'gpt-4o-mini', step2: 'gpt-4o', step3: 'gpt-4o', fallback: 'gpt-4o-mini' },
-    };
-  }
+  // Step 1: Use /models endpoint to validate key and discover available models (free, no tokens)
+  let available = await fetchAvailableModels(apiKey);
 
-  const available: string[] = ['gpt-4o-mini'];
-  for (const model of ['gpt-4o', 'gpt-5.4', 'gpt-5.4-pro']) {
-    if (await testOpenAIModel(apiKey, model)) available.push(model);
+  // Step 2: If /models endpoint failed (e.g. institutional restrictions), fall back to test calls
+  if (available === null) {
+    // Try each known model via test call; key is valid if at least one succeeds
+    available = [];
+    for (const model of KNOWN_MODELS) {
+      if (await testOpenAIModel(apiKey, model)) available.push(model);
+    }
+    if (available.length === 0) {
+      return {
+        valid: false,
+        availableModels: [],
+        recommended: { step1: 'gpt-4o-mini', step2: 'gpt-4o', step3: 'gpt-4o', fallback: 'gpt-4o-mini' },
+      };
+    }
+  } else if (available.length === 0) {
+    // /models worked but returned no known models — key is valid but no supported models found
+    // Fall back to test calls in case our KNOWN_MODELS list just needs updating
+    for (const model of KNOWN_MODELS) {
+      if (await testOpenAIModel(apiKey, model)) available.push(model);
+    }
+    if (available.length === 0) {
+      return {
+        valid: false,
+        availableModels: [],
+        recommended: { step1: 'gpt-4o-mini', step2: 'gpt-4o', step3: 'gpt-4o', fallback: 'gpt-4o-mini' },
+      };
+    }
   }
 
   const best =
     available.find(m => m === 'gpt-5.4-pro') ??
     available.find(m => m === 'gpt-5.4') ??
     (available.includes('gpt-4o') ? 'gpt-4o' : 'gpt-4o-mini');
-  const mid = available.includes('gpt-4o') ? 'gpt-4o' : 'gpt-4o-mini';
-  const fallback = available.includes('gpt-4o') ? 'gpt-4o' : 'gpt-4o-mini';
+  const mid = available.includes('gpt-4o') ? 'gpt-4o' : available[0];
+  const low = available.includes('gpt-4o-mini') ? 'gpt-4o-mini' : available[available.length - 1];
+  const fallback = available.includes('gpt-4o') ? 'gpt-4o' : available[available.length - 1];
 
   return {
     valid: true,
     availableModels: available,
-    recommended: { step1: 'gpt-4o-mini', step2: mid, step3: best, fallback },
+    recommended: { step1: low, step2: mid, step3: best, fallback },
   };
 };
 
