@@ -351,7 +351,7 @@ const App: React.FC = () => {
       if (documentContent.length > 500 && !isAutoFilling && !result) {
         setIsAutoFilling(true);
         try {
-          const analysis = await analyzeCourseDocumentWithProvider(documentContent, apiKey, openaiKey, selectedLLM);
+          const analysis = await analyzeCourseDocumentWithProvider(documentContent, apiKey, openaiKey, selectedLLM, modelConfig ?? undefined);
           if (analysis.courseContext) setContextType(analysis.courseContext);
           if (analysis.courseInfo) setCourseInfo(analysis.courseInfo);
           if (analysis.courseLength) setCourseLength(analysis.courseLength);

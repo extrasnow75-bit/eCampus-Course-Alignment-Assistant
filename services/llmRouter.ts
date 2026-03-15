@@ -72,16 +72,20 @@ export const analyzeCourseDocumentWithProvider = async (
   content: string,
   geminiKey?: string,
   openaiKey?: string,
-  preferredProvider?: LLMProvider
+  preferredProvider?: LLMProvider,
+  modelConfig?: ModelConfig
 ): Promise<AutoFillResults> => {
   if (preferredProvider === 'openai' && openaiKey) {
-    return analyzeCourseDocumentOpenAI(content, openaiKey);
+    // Use step1 model from config for extraction; fall back to a safe default
+    const extractionModel = modelConfig?.step1 || 'gpt-4o-mini';
+    return analyzeCourseDocumentOpenAI(content, openaiKey, extractionModel);
   }
   if (geminiKey) {
     return analyzeCourseDocument(content, geminiKey);
   }
   if (openaiKey) {
-    return analyzeCourseDocumentOpenAI(content, openaiKey);
+    const extractionModel = modelConfig?.step1 || 'gpt-4o-mini';
+    return analyzeCourseDocumentOpenAI(content, openaiKey, extractionModel);
   }
   throw new Error('No API key available for auto-fill analysis.');
 };
