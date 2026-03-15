@@ -78,6 +78,7 @@ const App: React.FC = () => {
   const [isParsing, setIsParsing] = useState(false);
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [isAccordionOpen, setIsAccordionOpen] = useState(false);
+  const [isModelConfigOpen, setIsModelConfigOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isUseCasesOpen, setIsUseCasesOpen] = useState(false);
   const [isSetupOpen, setIsSetupOpen] = useState(
@@ -781,51 +782,75 @@ const App: React.FC = () => {
                 </div>
               )}
               {!isDetecting && modelConfig && availableModels.length > 0 && (
-                <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-[#0033A0] text-base">AI Model Configuration</h3>
-                    <button
-                      onClick={() => { const key = selectedLLM === 'openai' ? openaiKey : apiKey; if (key) handleValidateKey(selectedLLM, key); }}
-                      className="text-xs text-blue-600 hover:underline font-medium"
-                    >
-                      Re-detect models
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate-600">⭐ = recommended for this step. ⚠️ = lower-tier model may reduce quality.</p>
-                  <div className="space-y-3">
-                    {([
-                      { key: 'step1', label: 'Step 1: Document Extraction', task: 'Reads and structures the design document' },
-                      { key: 'step2', label: 'Step 2: MLO Generation', task: 'Extracts or generates module learning objectives' },
-                      { key: 'step3', label: 'Step 3: Alignment Analysis', task: 'Creates full alignment mappings and report' },
-                      { key: 'fallback', label: 'Fallback', task: 'Used if Step 3 fails due to quota' },
-                    ] as const).map(({ key, label, task }) => {
-                      const currentModel = (modelConfig as any)[key] as string;
-                      const defaultModel = currentModel;
-                      const warning = isLowTierWarning(key, currentModel);
-                      return (
-                        <div key={key} className="flex items-start gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-700">{label}</p>
-                            <p className="text-xs text-slate-600">{task}</p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <select
-                              value={currentModel}
-                              onChange={(e) => updateModelConfig(key, e.target.value)}
-                              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium"
-                            >
-                              {availableModels.map(m => (
-                                <option key={m} value={m}>
-                                  {getModelLabel(m)}{m === defaultModel ? ' ⭐' : ''}
-                                </option>
-                              ))}
-                            </select>
-                            {warning && <span title="Lower-tier model selected — results may be less detailed for this step" className="text-amber-500 text-base">⚠️</span>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                  {/* Collapsible header */}
+                  <button
+                    onClick={() => setIsModelConfigOpen(!isModelConfigOpen)}
+                    className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <h3 className="font-bold text-[#0033A0] text-base">AI Model Configuration</h3>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          Using {getModelLabel(modelConfig.step3)} for alignment analysis
+                          {isLowTierWarning('step3', modelConfig.step3) && <span className="ml-1">⚠️</span>}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-blue-600 font-medium">{isModelConfigOpen ? 'Hide' : 'Customize'}</span>
+                      <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isModelConfigOpen ? 'rotate-180' : ''}`} />
+                    </div>
+                  </button>
+
+                  {/* Expandable content */}
+                  {isModelConfigOpen && (
+                    <div className="px-5 pb-5 space-y-4 border-t border-slate-100">
+                      <div className="flex items-center justify-between pt-4">
+                        <p className="text-xs text-slate-600">⭐ = recommended for this step. ⚠️ = lower-tier model may reduce quality.</p>
+                        <button
+                          onClick={() => { const key = selectedLLM === 'openai' ? openaiKey : apiKey; if (key) handleValidateKey(selectedLLM, key); }}
+                          className="text-xs text-blue-600 hover:underline font-medium shrink-0 ml-4"
+                        >
+                          Re-detect models
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {([
+                          { key: 'step1', label: 'Step 1: Document Extraction', task: 'Reads and structures the design document' },
+                          { key: 'step2', label: 'Step 2: MLO Generation', task: 'Extracts or generates module learning objectives' },
+                          { key: 'step3', label: 'Step 3: Alignment Analysis', task: 'Creates full alignment mappings and report' },
+                          { key: 'fallback', label: 'Fallback', task: 'Used if Step 3 fails due to quota' },
+                        ] as const).map(({ key, label, task }) => {
+                          const currentModel = (modelConfig as any)[key] as string;
+                          const defaultModel = currentModel;
+                          const warning = isLowTierWarning(key, currentModel);
+                          return (
+                            <div key={key} className="flex items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-slate-700">{label}</p>
+                                <p className="text-xs text-slate-600">{task}</p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <select
+                                  value={currentModel}
+                                  onChange={(e) => updateModelConfig(key, e.target.value)}
+                                  className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium"
+                                >
+                                  {availableModels.map(m => (
+                                    <option key={m} value={m}>
+                                      {getModelLabel(m)}{m === defaultModel ? ' ⭐' : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                                {warning && <span title="Lower-tier model selected — results may be less detailed for this step" className="text-amber-500 text-base">⚠️</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
