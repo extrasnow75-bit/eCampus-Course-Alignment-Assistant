@@ -624,7 +624,14 @@ const App: React.FC = () => {
                       <input
                         type="checkbox"
                         checked={isDisclaimerChecked}
-                        onChange={(e) => setIsDisclaimerChecked(e.target.checked)}
+                        onChange={(e) => {
+                          setIsDisclaimerChecked(e.target.checked);
+                          if (e.target.checked) {
+                            // Re-run model detection for any saved keys when disclaimer is accepted
+                            if (apiKey) handleValidateKey('gemini', apiKey);
+                            if (openaiKey) handleValidateKey('openai', openaiKey);
+                          }
+                        }}
                         className="w-4 h-4 accent-blue-600 cursor-pointer rounded"
                       />
                       <span className="text-xs font-bold text-[#0033A0]">I understand and agree — show me the form</span>
