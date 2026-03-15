@@ -7,68 +7,134 @@ export const GEMINI_MODEL_LABELS: Record<string, string> = {
   'gemini-3.1-flash-lite-preview': 'Gemini Flash-Lite',
   'gemini-3-flash-preview': 'Gemini Flash',
   'gemini-3.1-pro-preview': 'Gemini Pro',
+  'gemini-2.0-flash-lite': 'Gemini 2.0 Flash Lite',
+  'gemini-2.0-flash': 'Gemini 2.0 Flash',
+  'gemini-2.0-flash-thinking-exp': 'Gemini 2.0 Flash Thinking',
+  'gemini-2.0-flash-thinking-exp-01-21': 'Gemini 2.0 Flash Thinking',
+  'gemini-2.5-flash-preview-04-17': 'Gemini 2.5 Flash',
+  'gemini-2.5-pro-preview-03-25': 'Gemini 2.5 Pro',
+  'gemini-2.5-pro-exp-03-25': 'Gemini 2.5 Pro',
 };
 
+export const getGeminiModelLabel = (model: string): string =>
+  GEMINI_MODEL_LABELS[model] ?? model;
+
+// Determine tier from model name patterns
+export const getGeminiModelTier = (model: string): 'low' | 'mid' | 'high' => {
+  const m = model.toLowerCase();
+  if (m.includes('nano') || m.includes('lite') || m.includes('flash-lite')) return 'low';
+  if (m.includes('thinking') || m.includes('pro') || m.includes('ultra')) return 'high';
+  if (m.includes('flash')) return 'mid';
+  return 'mid';
+};
+
+// Deprecated static export kept for compatibility
 export const GEMINI_MODEL_TIERS: Record<string, 'low' | 'mid' | 'high'> = {
   'gemini-3.1-flash-lite-preview': 'low',
   'gemini-3-flash-preview': 'mid',
   'gemini-3.1-pro-preview': 'high',
 };
 
+export interface GeminiModelConfig {
+  step1: string;
+  step2: string;
+  step3: string;
+  fallback: string;
+}
+
 export interface GeminiDetectionResult {
   valid: boolean;
   availableModels: string[];
-  recommended: { step1: string; step2: string; step3: string; fallback: string };
+  recommended: GeminiModelConfig;
 }
 
-export const detectGeminiModels = async (apiKey: string): Promise<GeminiDetectionResult> => {
-  const ai = new GoogleGenAI({ apiKey });
+// Fetch all generateContent-capable Gemini models from the API (free, no tokens)
+const fetchGeminiModels = async (apiKey: string): Promise<string[] | null> => {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=100`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const models: string[] = (data.models ?? [])
+      .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+      .map((m: any) => (m.name as string).replace('models/', ''))
+      .filter((id: string) => id.startsWith('gemini'));
+    console.log('[Gemini] All available models:', models);
+    return models.length > 0 ? models : null;
+  } catch {
+    return null;
+  }
+};
 
-  const testModel = async (model: string): Promise<boolean> => {
-    try {
-      await ai.models.generateContent({ model, contents: 'Say ok', config: { maxOutputTokens: 5 } });
-      return true;
-    } catch {
-      return false;
-    }
+const sortGeminiByTier = (models: string[]): string[] =>
+  [...models].sort((a, b) => {
+    const tierVal = { high: 2, mid: 1, low: 0 };
+    const diff = tierVal[getGeminiModelTier(b)] - tierVal[getGeminiModelTier(a)];
+    if (diff !== 0) return diff;
+    // Within same tier, prefer non-preview/non-exp (stable) models first
+    const aExp = a.includes('preview') || a.includes('exp') ? 1 : 0;
+    const bExp = b.includes('preview') || b.includes('exp') ? 1 : 0;
+    return aExp - bExp;
+  });
+
+// Fallback models to test if the API listing is unavailable
+const FALLBACK_TEST_MODELS = [
+  'gemini-2.0-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-thinking-exp',
+  'gemini-2.5-flash-preview-04-17',
+  'gemini-2.5-pro-preview-03-25',
+  'gemini-3.1-flash-lite-preview',
+  'gemini-3-flash-preview',
+  'gemini-3.1-pro-preview',
+];
+
+export const detectGeminiModels = async (apiKey: string): Promise<GeminiDetectionResult> => {
+  const invalid: GeminiDetectionResult = {
+    valid: false,
+    availableModels: [],
+    recommended: { step1: 'gemini-2.0-flash-lite', step2: 'gemini-2.0-flash', step3: 'gemini-2.0-flash-thinking-exp', fallback: 'gemini-2.0-flash' },
   };
 
-  // Validate key with cheapest model first
-  const flashLiteOk = await testModel('gemini-3.1-flash-lite-preview');
-  if (!flashLiteOk) {
-    return {
-      valid: false,
-      availableModels: [],
-      recommended: { step1: 'gemini-3.1-flash-lite-preview', step2: 'gemini-3.1-flash-lite-preview', step3: 'gemini-3.1-pro-preview', fallback: 'gemini-3.1-flash-lite-preview' },
-    };
+  // Step 1: Try the models listing API (free, no tokens)
+  let available = await fetchGeminiModels(apiKey);
+
+  // Step 2: If listing unavailable, fall back to test calls
+  if (available === null) {
+    const ai = new GoogleGenAI({ apiKey });
+    available = [];
+    for (const model of FALLBACK_TEST_MODELS) {
+      try {
+        await ai.models.generateContent({ model, contents: 'Say ok', config: { maxOutputTokens: 5 } });
+        available.push(model);
+      } catch { /* not available */ }
+    }
+    if (available.length === 0) return invalid;
   }
 
-  const available: string[] = ['gemini-3.1-flash-lite-preview'];
-  if (await testModel('gemini-3-flash-preview')) available.push('gemini-3-flash-preview');
-  if (await testModel('gemini-3.1-pro-preview')) available.push('gemini-3.1-pro-preview');
+  const sorted = sortGeminiByTier(available);
+  const best = sorted[0];
+  const low = sorted[sorted.length - 1];
+  const mid = sorted[Math.floor(sorted.length / 2)] ?? sorted[0];
+  const fallback = sorted.length > 1 ? sorted[1] : sorted[0];
 
-  const best = available.includes('gemini-3.1-pro-preview')
-    ? 'gemini-3.1-pro-preview'
-    : available.includes('gemini-3-flash-preview')
-      ? 'gemini-3-flash-preview'
-      : 'gemini-3.1-flash-lite-preview';
-  const mid = available.includes('gemini-3-flash-preview')
-    ? 'gemini-3-flash-preview'
-    : 'gemini-3.1-flash-lite-preview';
+  console.log('[Gemini] Recommended — step1:', low, '| step2:', mid, '| step3:', best, '| fallback:', fallback);
 
   return {
     valid: true,
-    availableModels: available,
-    recommended: { step1: 'gemini-3.1-flash-lite-preview', step2: mid, step3: best, fallback: 'gemini-3.1-flash-lite-preview' },
+    availableModels: sorted,
+    recommended: { step1: low, step2: mid, step3: best, fallback },
   };
 };
 
-export const analyzeCourseDocument = async (content: string, apiKey?: string): Promise<AutoFillResults> => {
+export const analyzeCourseDocument = async (content: string, apiKey?: string, model?: string): Promise<AutoFillResults> => {
   const activeKey = apiKey || process.env.API_KEY || process.env.GEMINI_API_KEY;
   if (!activeKey) {
     throw new Error("No Gemini API key provided. Please set your key in Settings.");
   }
   const ai = new GoogleGenAI({ apiKey: activeKey });
+  const activeModel = model || 'gemini-2.0-flash';
 
   const systemInstruction = `
     You are an expert instructional designer. Analyze the provided course design document and extract specific details to help fill out a course alignment form.
@@ -84,7 +150,7 @@ export const analyzeCourseDocument = async (content: string, apiKey?: string): P
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: activeModel,
     contents: `Analyze this document content and return JSON:\n\n${content.substring(0, 20000)}`,
     config: {
       systemInstruction,
@@ -134,7 +200,8 @@ const extractDocumentStructure = async (
   courseLength: string,
   objectiveLocation: string,
   exclusions: string,
-  apiKey: string
+  apiKey: string,
+  model = 'gemini-2.0-flash'
 ): Promise<ExtractedDocumentStructure> => {
   const ai = new GoogleGenAI({ apiKey });
 
@@ -159,7 +226,7 @@ IMPORTANT:
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite-preview", // Flash-Lite: high daily limit, handles full document read
+    model, // Step 1: lowest-tier model (handles full document read)
     contents: `Extract document structure:\n\n${documentContent}`,
     config: {
       systemInstruction,
@@ -227,7 +294,8 @@ const generateMLOsAndFeedback = async (
   clos: string,
   courseContext: string,
   courseLength: string,
-  apiKey: string
+  apiKey: string,
+  model = 'gemini-2.0-flash'
 ): Promise<MLOsAndFeedback> => {
   const ai = new GoogleGenAI({ apiKey });
 
@@ -251,7 +319,7 @@ Output ONLY valid JSON, no additional text.
     .join('\n\n');
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite-preview",
+    model, // Step 2: mid-tier model
     contents: `
 Course Context: ${courseContext} (${courseLength})
 CLOs: ${clos}
@@ -337,7 +405,9 @@ const createAlignmentMappings = async (
   courseContext: string,
   courseLength: string,
   courseInfo: string,
-  apiKey: string
+  apiKey: string,
+  step3Model = 'gemini-2.0-flash-thinking-exp',
+  fallbackModel = 'gemini-2.0-flash'
 ): Promise<AlignmentResult> => {
   const ai = new GoogleGenAI({ apiKey });
 
@@ -474,16 +544,16 @@ Create complete alignment mappings.
     }
   });
 
-  // Attempt Pro first, then fall back to Flash-Lite on quota errors
+  // Attempt step3 model first (highest tier), fall back on quota errors
   let response;
   let usedFallback = false;
   try {
-    response = await tryAlignment("gemini-3.1-pro-preview");
+    response = await tryAlignment(step3Model);
   } catch (err) {
     if (isQuotaError(err)) {
-      console.warn("Pro model quota exceeded — retrying with Flash-Lite fallback");
+      console.warn(`${step3Model} quota exceeded — retrying with fallback: ${fallbackModel}`);
       usedFallback = true;
-      response = await tryAlignment("gemini-3.1-flash-lite-preview");
+      response = await tryAlignment(fallbackModel);
     } else {
       throw err;
     }
@@ -507,15 +577,22 @@ export const generateDesignMap = async (
   objectiveLocation?: string,
   courseInfo?: string,
   additionalInfo?: string,
-  apiKey?: string
+  apiKey?: string,
+  modelConfig?: GeminiModelConfig
 ): Promise<DesignMap> => {
   const activeKey = apiKey || process.env.API_KEY || process.env.GEMINI_API_KEY;
   if (!activeKey) {
     throw new Error("No Gemini API key provided. Please set your key in Settings.");
   }
 
+  // Use model config if provided, otherwise fall back to sensible defaults
+  const step1Model = modelConfig?.step1 || 'gemini-2.0-flash';
+  const step2Model = modelConfig?.step2 || 'gemini-2.0-flash';
+  const step3Model = modelConfig?.step3 || 'gemini-2.0-flash-thinking-exp';
+  const fallbackModel = modelConfig?.fallback || 'gemini-2.0-flash';
+
   try {
-    // STEP 1: Extract document structure (Pro model - best for complex extraction)
+    // STEP 1: Extract document structure using lowest-tier model
     const extracted = await extractDocumentStructure(
       documentContent,
       courseInfo || "N/A",
@@ -523,19 +600,21 @@ export const generateDesignMap = async (
       courseLength,
       objectiveLocation || "Module Introduction sections",
       exclusions || "Instructor Resources, Student Resources, and Getting Started modules",
-      activeKey
+      activeKey,
+      step1Model
     );
 
-    // STEP 2: Generate MLOs and QM Feedback (Flash-Lite on extracted JSON)
+    // STEP 2: Generate MLOs and QM Feedback using mid-tier model
     const mlosAndFeedback = await generateMLOsAndFeedback(
       extracted,
       clos,
       courseContext,
       courseLength,
-      activeKey
+      activeKey,
+      step2Model
     );
 
-    // STEP 3: Create alignment mappings (Flash-Lite on extracted JSON + objectives)
+    // STEP 3: Create alignment mappings using highest-tier model with fallback
     const alignment = await createAlignmentMappings(
       extracted,
       mlosAndFeedback.mlosByModule,
@@ -545,7 +624,9 @@ export const generateDesignMap = async (
       courseContext,
       courseLength,
       courseInfo || "N/A",
-      activeKey
+      activeKey,
+      step3Model,
+      fallbackModel
     );
 
     // Combine all results into final DesignMap

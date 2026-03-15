@@ -1,6 +1,6 @@
 
 import { DesignMap, AutoFillResults } from '../types';
-import { generateDesignMap, analyzeCourseDocument } from './geminiService';
+import { generateDesignMap, analyzeCourseDocument, GeminiModelConfig } from './geminiService';
 import {
   generateDesignMapOpenAI,
   analyzeCourseDocumentOpenAI,
@@ -64,7 +64,8 @@ export const generateDesignMapWithProvider = async (
     params.objectiveLocation,
     params.courseInfo,
     params.additionalInfo,
-    apiKey
+    apiKey,
+    modelConfig as GeminiModelConfig | undefined
   );
 };
 
@@ -81,7 +82,8 @@ export const analyzeCourseDocumentWithProvider = async (
     return analyzeCourseDocumentOpenAI(content, openaiKey, extractionModel);
   }
   if (geminiKey) {
-    return analyzeCourseDocument(content, geminiKey);
+    const extractionModel = (modelConfig as GeminiModelConfig | undefined)?.step1;
+    return analyzeCourseDocument(content, geminiKey, extractionModel);
   }
   if (openaiKey) {
     const extractionModel = modelConfig?.step1 || 'gpt-4o-mini';
