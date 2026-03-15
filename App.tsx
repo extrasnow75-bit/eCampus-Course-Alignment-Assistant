@@ -883,12 +883,6 @@ const App: React.FC = () => {
               
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 <div className="lg:col-span-4 space-y-6">
-                  {isAutoFilling && (
-                    <div className="flex items-center gap-3 text-sm font-bold text-blue-600 animate-pulse bg-blue-50 p-4 rounded-xl border border-blue-100">
-                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                      Auto-filling form fields...
-                    </div>
-                  )}
                   <div>
                     <label className="block text-sm font-bold text-slate-500 uppercase mb-3 tracking-wider">1. Course Context</label>
                     <select value={contextType} onChange={(e) => setContextType(e.target.value)} className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all outline-none bg-white mb-3 text-lg">
@@ -938,6 +932,17 @@ const App: React.FC = () => {
                 </div>
               </div>
             </section>
+
+            {/* Auto-fill notification */}
+            {isAutoFilling && (
+              <div className="flex items-center gap-4 bg-[#0033A0] text-white px-6 py-4 rounded-xl shadow-md animate-pulse">
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0"></div>
+                <div>
+                  <p className="font-bold text-sm">Auto-filling form fields…</p>
+                  <p className="text-xs text-blue-200 mt-0.5">The AI is reading your document and populating the form below. This will only take a moment.</p>
+                </div>
+              </div>
+            )}
 
             {/* Course Details Section */}
             <section className="space-y-8">
