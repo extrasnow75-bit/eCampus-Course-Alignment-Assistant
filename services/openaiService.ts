@@ -19,11 +19,11 @@ export const OPENAI_MODEL_LABELS: Record<string, string> = {
   'o4-mini': 'o4 Mini',
 };
 
-// Priority order for tier assignment — higher index = higher tier
+// Priority order for tier assignment — higher index = higher tier within tier
 const MODEL_TIER_ORDER = [
-  'gpt-4o-mini', 'o1-mini', 'o3-mini', 'o4-mini',  // low
-  'gpt-4o', 'gpt-5.3', 'gpt-5.3-mini', 'o1', 'o3',  // mid
-  'gpt-5.4', 'gpt-5.4-pro',                           // high
+  'gpt-4o-mini', 'o1-mini', 'o3-mini', 'o4-mini',       // low  (indices 0-3)
+  'gpt-4o', 'gpt-5.3', 'gpt-5.3-mini', 'o1', 'o3',      // mid  (indices 4-8)
+  'gpt-5.4', 'gpt-5.4-pro',                               // high (indices 9-10)
 ];
 
 export const getModelTier = (model: string): 'low' | 'mid' | 'high' => {
@@ -32,6 +32,14 @@ export const getModelTier = (model: string): 'low' | 'mid' | 'high' => {
   if (idx <= 3) return 'low';
   if (idx <= 8) return 'mid';
   return 'high';
+};
+
+// Returns the full sort index (tier × 100 + position within tier) for stable ordering
+const getModelSortScore = (model: string): number => {
+  const idx = MODEL_TIER_ORDER.indexOf(model);
+  if (idx !== -1) return idx;
+  // Unknown models: place in mid tier, after known mid models
+  return 8.5;
 };
 
 export const getModelLabel = (model: string): string =>
@@ -58,8 +66,11 @@ export interface OpenAIDetectionResult {
   recommended: OpenAIModelConfig;
 }
 
-const isReasoningModel = (model: string): boolean =>
-  model === 'gpt-5.4' || model === 'gpt-5.4-pro' || /^o\d/.test(model);
+// o-series models (o1, o3, o4) have different API constraints:
+// - Don't support response_format: json_object
+// - Don't use max_tokens (use max_completion_tokens only)
+// gpt-5.x models are standard chat models and support response_format
+const isOSeriesModel = (model: string): boolean => /^o\d/.test(model);
 
 // ── Low-level helpers ─────────────────────────────────────────────────────────
 const callOpenAI = async (
@@ -69,17 +80,18 @@ const callOpenAI = async (
   userMessage: string,
   maxTokens = 4000
 ): Promise<string> => {
-  const reasoning = isReasoningModel(model);
+  const oSeries = isOSeriesModel(model);
   const body: Record<string, unknown> = {
     model,
     messages: [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: userMessage },
+      // For o-series models, append JSON instruction to user message since
+      // response_format: json_object is not supported
+      { role: 'user', content: oSeries ? `${userMessage}\n\nRespond with valid JSON only.` : userMessage },
     ],
-    max_completion_tokens: reasoning ? maxTokens * 2 : maxTokens,
-    ...(reasoning
-      ? { reasoning: { effort: 'high' } }
-      : { response_format: { type: 'json_object' } }),
+    max_completion_tokens: maxTokens,
+    // Only add response_format for standard GPT models — not o-series
+    ...(!oSeries ? { response_format: { type: 'json_object' } } : {}),
   };
 
   const res = await fetch(OPENAI_API_URL, {
@@ -155,12 +167,9 @@ const testOpenAIModel = async (apiKey: string, model: string): Promise<boolean> 
   }
 };
 
-// Sort models by tier: high-tier models first
+// Sort models highest-first, using full sort score for stable within-tier ordering
 const sortByTier = (models: string[]): string[] =>
-  [...models].sort((a, b) => {
-    const tierVal = { high: 2, mid: 1, low: 0 };
-    return tierVal[getModelTier(b)] - tierVal[getModelTier(a)];
-  });
+  [...models].sort((a, b) => getModelSortScore(b) - getModelSortScore(a));
 
 export const detectOpenAIModels = async (apiKey: string): Promise<OpenAIDetectionResult> => {
   // Step 1: Use /models endpoint (free, no tokens) to validate key and list all chat models
