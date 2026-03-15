@@ -4,13 +4,40 @@ import { DesignMap, AutoFillResults } from '../types';
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
 // ── Model metadata ────────────────────────────────────────────────────────────
+// Known friendly labels — unknown models will fall back to their raw ID
 export const OPENAI_MODEL_LABELS: Record<string, string> = {
   'gpt-4o-mini': 'GPT-4o Mini',
   'gpt-4o': 'GPT-4o',
+  'gpt-5.3': 'GPT-5.3',
+  'gpt-5.3-mini': 'GPT-5.3 Instant',
   'gpt-5.4': 'GPT-5.4 Thinking',
   'gpt-5.4-pro': 'GPT-5.4 Pro',
+  'o1': 'o1',
+  'o1-mini': 'o1 Mini',
+  'o3': 'o3',
+  'o3-mini': 'o3 Mini',
+  'o4-mini': 'o4 Mini',
 };
 
+// Priority order for tier assignment — higher index = higher tier
+const MODEL_TIER_ORDER = [
+  'gpt-4o-mini', 'o1-mini', 'o3-mini', 'o4-mini',  // low
+  'gpt-4o', 'gpt-5.3', 'gpt-5.3-mini', 'o1', 'o3',  // mid
+  'gpt-5.4', 'gpt-5.4-pro',                           // high
+];
+
+export const getModelTier = (model: string): 'low' | 'mid' | 'high' => {
+  const idx = MODEL_TIER_ORDER.indexOf(model);
+  if (idx === -1) return 'mid'; // Unknown models default to mid
+  if (idx <= 3) return 'low';
+  if (idx <= 8) return 'mid';
+  return 'high';
+};
+
+export const getModelLabel = (model: string): string =>
+  OPENAI_MODEL_LABELS[model] ?? model; // Fall back to raw ID if unknown
+
+// Deprecated static export kept for compatibility
 export const OPENAI_MODEL_TIERS: Record<string, 'low' | 'mid' | 'high'> = {
   'gpt-4o-mini': 'low',
   'gpt-4o': 'mid',
@@ -84,11 +111,20 @@ const parseJSON = (text: string): any => {
 
 // ── Model detection ───────────────────────────────────────────────────────────
 
-// Known models we support, in priority order (highest to lowest)
-const KNOWN_MODELS = ['gpt-5.4-pro', 'gpt-5.4', 'gpt-4o', 'gpt-4o-mini'];
+// Chat-capable model prefixes — used to filter the full model list
+const CHAT_MODEL_PREFIXES = ['gpt-', 'o1', 'o3', 'o4'];
+
+// Fallback models to test if /models endpoint is unavailable
+const FALLBACK_TEST_MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-5.3', 'gpt-5.4', 'gpt-5.4-pro'];
+
+const isChatModel = (id: string): boolean =>
+  CHAT_MODEL_PREFIXES.some(p => id.startsWith(p)) &&
+  !id.includes('audio') && !id.includes('realtime') &&
+  !id.includes('instruct') && !id.includes('vision') &&
+  !id.includes('embedding') && !id.includes('tts') &&
+  !id.includes('whisper') && !id.includes('dall-e');
 
 const fetchAvailableModels = async (apiKey: string): Promise<string[] | null> => {
-  // Use the /models endpoint (free GET, no tokens used) to validate key + list models
   try {
     const res = await fetch('https://api.openai.com/v1/models', {
       headers: { Authorization: `Bearer ${apiKey}` },
@@ -96,11 +132,11 @@ const fetchAvailableModels = async (apiKey: string): Promise<string[] | null> =>
     if (!res.ok) return null;
     const data = await res.json();
     const allIds: string[] = (data.data ?? []).map((m: any) => m.id as string).sort();
-    // Log all available models to console so we can identify correct API model IDs
-    console.log('[OpenAI] All models available on this account:', allIds);
-    const matched = KNOWN_MODELS.filter(m => allIds.includes(m));
-    console.log('[OpenAI] Matched supported models:', matched);
-    return matched;
+    console.log('[OpenAI] All models on this account:', allIds);
+    // Return all chat-capable models — don't restrict to a hardcoded list
+    const chatModels = allIds.filter(isChatModel);
+    console.log('[OpenAI] Chat models detected:', chatModels);
+    return chatModels;
   } catch {
     return null;
   }
@@ -119,28 +155,21 @@ const testOpenAIModel = async (apiKey: string, model: string): Promise<boolean> 
   }
 };
 
+// Sort models by tier: high-tier models first
+const sortByTier = (models: string[]): string[] =>
+  [...models].sort((a, b) => {
+    const tierVal = { high: 2, mid: 1, low: 0 };
+    return tierVal[getModelTier(b)] - tierVal[getModelTier(a)];
+  });
+
 export const detectOpenAIModels = async (apiKey: string): Promise<OpenAIDetectionResult> => {
-  // Step 1: Use /models endpoint to validate key and discover available models (free, no tokens)
+  // Step 1: Use /models endpoint (free, no tokens) to validate key and list all chat models
   let available = await fetchAvailableModels(apiKey);
 
-  // Step 2: If /models endpoint failed (e.g. institutional restrictions), fall back to test calls
+  // Step 2: /models endpoint unavailable — fall back to test calls against known models
   if (available === null) {
-    // Try each known model via test call; key is valid if at least one succeeds
     available = [];
-    for (const model of KNOWN_MODELS) {
-      if (await testOpenAIModel(apiKey, model)) available.push(model);
-    }
-    if (available.length === 0) {
-      return {
-        valid: false,
-        availableModels: [],
-        recommended: { step1: 'gpt-4o-mini', step2: 'gpt-4o', step3: 'gpt-4o', fallback: 'gpt-4o-mini' },
-      };
-    }
-  } else if (available.length === 0) {
-    // /models worked but returned no known models — key is valid but no supported models found
-    // Fall back to test calls in case our KNOWN_MODELS list just needs updating
-    for (const model of KNOWN_MODELS) {
+    for (const model of FALLBACK_TEST_MODELS) {
       if (await testOpenAIModel(apiKey, model)) available.push(model);
     }
     if (available.length === 0) {
@@ -152,17 +181,25 @@ export const detectOpenAIModels = async (apiKey: string): Promise<OpenAIDetectio
     }
   }
 
-  const best =
-    available.find(m => m === 'gpt-5.4-pro') ??
-    available.find(m => m === 'gpt-5.4') ??
-    (available.includes('gpt-4o') ? 'gpt-4o' : 'gpt-4o-mini');
-  const mid = available.includes('gpt-4o') ? 'gpt-4o' : available[0];
-  const low = available.includes('gpt-4o-mini') ? 'gpt-4o-mini' : available[available.length - 1];
-  const fallback = available.includes('gpt-4o') ? 'gpt-4o' : available[available.length - 1];
+  // /models succeeded but returned no chat models — truly no usable models
+  if (available.length === 0) {
+    return {
+      valid: false,
+      availableModels: [],
+      recommended: { step1: 'gpt-4o-mini', step2: 'gpt-4o', step3: 'gpt-4o', fallback: 'gpt-4o-mini' },
+    };
+  }
+
+  // Sort available models by tier and assign recommendations
+  const sorted = sortByTier(available);
+  const best = sorted[0];                                           // highest tier
+  const mid = sorted[Math.floor(sorted.length / 2)] ?? sorted[0]; // middle tier
+  const low = sorted[sorted.length - 1] ?? sorted[0];             // lowest tier
+  const fallback = sorted.length > 1 ? sorted[1] : sorted[0];     // second-best as fallback
 
   return {
     valid: true,
-    availableModels: available,
+    availableModels: sorted,
     recommended: { step1: low, step2: mid, step3: best, fallback },
   };
 };
